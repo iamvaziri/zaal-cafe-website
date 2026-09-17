@@ -1,1 +1,43 @@
-const C="zaal-mock-v1";self.addEventListener("install",e=>e.waitUntil(caches.open(C).then(c=>c.addAll(["/","/index.html","/assets/logo.png"])).then(()=>self.skipWaiting())));self.addEventListener("fetch",e=>{if(e.request.method!=="GET")return;e.respondWith(fetch(e.request).catch(()=>caches.match(e.request).then(r=>r||caches.match("/index.html"))))});
+const CACHE = "zaal-d1-v2";
+const SHELL = ["/", "/index.html", "/assets/logo.png"];
+
+self.addEventListener("install", (event) => {
+  event.waitUntil(
+    caches
+      .open(CACHE)
+      .then((cache) => cache.addAll(SHELL))
+      .then(() => self.skipWaiting()),
+  );
+});
+
+self.addEventListener("activate", (event) => {
+  event.waitUntil(
+    caches
+      .keys()
+      .then((keys) =>
+        Promise.all(keys.filter((key) => key !== CACHE).map((key) => caches.delete(key))),
+      )
+      .then(() => self.clients.claim()),
+  );
+});
+
+self.addEventListener("fetch", (event) => {
+  if (event.request.method !== "GET") return;
+  const url = new URL(event.request.url);
+  if (
+    url.origin !== self.location.origin ||
+    url.pathname.startsWith("/api/") ||
+    url.pathname === "/admin" ||
+    url.pathname.startsWith("/admin/")
+  ) {
+    return;
+  }
+
+  event.respondWith(
+    fetch(event.request).catch(() =>
+      caches
+        .match(event.request)
+        .then((cached) => cached || caches.match("/index.html")),
+    ),
+  );
+});
