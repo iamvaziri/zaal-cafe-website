@@ -1,11 +1,13 @@
 ad7a418ced886c95fde47d948c15bf0b4e9109e8284a8ded16c420b5726b2053  ./.gitignore
-71acb7aebe9e43680a7cf69eebaeb67ab53697e69c388b1542188851fa268b56  ./QA-REPORT.md
-3d7f63fb7661970566f9696be59ca2bbc7fa4dc618333815ec1ae4b24bf45cca  ./README.md
+15c9819d38da6077ba437dbb24770bc8d86e9ce50e3cb629916086dd91fe2dbe  ./QA-REPORT.md
+ee98c5d544487be26c05f5a58ca501a5e19950cc3703ded24fcace2e5d8f4b8a  ./README.md
 90e165eafbb4a7c4466b1376a1530cb82e23ead731de9984101e9e22c6ed0b33  ./brand-reference/palette.jpeg
 90b8668dc85d30431fb45416ddfcd7849f383f67bb337b575c6a1a4190c88132  ./data/catalog-real-v1.json
 b209b32c3bfec4f1f4e0a2b34d5978287d1d933ee4a586c58bea192b7b6f349a  ./data/menu-import-review.csv
 e1a09a324985f83ceed32f092562d61322dfe2a89e88d5addc1ca6b8a955aeed  ./deploy.mjs
+17e355067c8284f47743a1ee3b1ef7ff684ff0601eda357f9353b10b3016ab31  ./licenses/Vazirmatn-OFL.txt
 51ff49085f303d93075e166ae993882f9355ad9c72d57d59058d52f0329603c6  ./migrations/0001_catalog.sql
+4e3fa217d38fdafc1fea4414ceb58ca5e662cf0ab5fa735a8c8c20e8b42cad92  ./public/assets/fonts/vazirmatn-variable.woff2
 5b5ea053b285e76e801c2482bf1a571af830c4719d11361772cbbbd95565ffcf  ./public/assets/logo.png
 5a3980767ed908cd4d0feedcc1b8dfd6c10daef00c94ac25c40e7f75b6d4e94a  ./public/assets/products/affogato.webp
 6950acebaacafd4e779c7c358e4df64a2c0bef992d47c5ff3d616debcbecbb5e  ./public/assets/products/americano.webp
@@ -57,8 +59,8 @@ e9efb3ccfc0a6c612e4d051868e9a31eadc0f66b888da471c0fde7708ccd50f6  ./public/asset
 284edddfe19662ee998a406fc9118c19f696b6f4633846aaa04634192314c656  ./public/assets/products/turkish.webp
 d2f1e68a637fe0e1e3a476156f273c31b044a7e675b84392079cba05d45bf6aa  ./public/assets/products/vanilla-milkshake.webp
 89d830c7b7b785779139285d16ba8be3f273581b11346daae439e50aef9605c6  ./public/assets/products/white-chocolate.webp
-c8583b6cdafc0d28905213fb5a71178d0fcd196a810d9ada8890ccdbae891065  ./public/index.html
+6600ff2d8e8365c74469a4c753e41ad87a01e0e9a2ec7e126a59ac7299ff1f31  ./public/index.html
 331ea9090db0c9f6f597bd9840fd5b171830f6e0b3ba1cb24dfa91f0c95aedc1  ./public/robots.txt
-cfdd612b4051fb96991302d9d080c453ffbe8baea981f62c9047d1699d74be7d  ./public/sw.js
+854d6d68cbbdc8125c3ed2bc2d62619c35ce005e963ccb7d7889a47b265d7aff  ./public/sw.js
 4669c8cf14f8d91d720f260a0bc419dea1bbb214f97c60f2833ee0ec4f399fa2  ./src/worker.js
 a78cdd9ea057b0aeb776c7961d99df348c751997ac3a58642a9755423558bbe5  ./wrangler.jsonc

@@ -1,5 +1,5 @@
-const CACHE = "zaal-real-menu-v3";
-const SHELL = ["/", "/index.html", "/assets/logo.png"];
+const CACHE = "zaal-vazirmatn-v4";
+const SHELL = ["/", "/index.html", "/assets/logo.png", "/assets/fonts/vazirmatn-variable.woff2"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(

@@ -41,3 +41,14 @@
 ## Data intentionally pending
 
 Product descriptions, one-line stories, ingredients, taste/palate validation, allergens, and dietary information remain pending business review. Taste/palate tags are an initial name-based pass and should be reviewed by the barista.
+
+
+## Font update V1.1
+
+- Vazirmatn v33.003 variable WOFF2: added
+- Latin, Persian, Latin digits, and Persian digits coverage: verified from matching variable TTF
+- Weight axis 100–900: verified
+- Self-hosted preload: added
+- All body, form, button, and admin text inherits Vazirmatn: verified
+- Service worker cache revision: `zaal-vazirmatn-v4`
+- OFL license: included
