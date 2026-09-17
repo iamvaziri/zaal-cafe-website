@@ -1,0 +1,60 @@
+﻿category_fa,category_en,product_fa,product_en,price_toman,variants,source,source_image,web_image,needs_price,needs_image,notes
+اسپرسو بار,Espresso Bar,اسپرسو,Espresso,90000,"[{""fa"": ""تک — ۱۰۰٪ روبوستا"", ""en"": ""Single — 100% Robusta"", ""price"": 90000}, {""fa"": ""دوبل — ۱۰۰٪ روبوستا"", ""en"": ""Double — 100% Robusta"", ""price"": 128000}, {""fa"": ""تک — ۳۰٪ عربیکا / ۷۰٪ روبوستا"", ""en"": ""Single — 30% Arabica / 70% Robusta"", ""price"": 110000}, {""fa"": ""دوبل — ۳۰٪ عربیکا / ۷۰٪ روبوستا"", ""en"": ""Double — 30% Arabica / 70% Robusta"", ""price"": 158000}, {""fa"": ""تک — ۵۰٪ عربیکا / ۵۰٪ روبوستا"", ""en"": ""Single — 50% Arabica / 50% Robusta"", ""price"": 122000}, {""fa"": ""دوبل — ۵۰٪ عربیکا / ۵۰٪ روبوستا"", ""en"": ""Double — 50% Arabica / 50% Robusta"", ""price"": 178000}, {""fa"": ""تک — ۷۰٪ عربیکا / ۳۰٪ روبوستا"", ""en"": ""Single — 70% Arabica / 30% Robusta"", ""price"": 134000}, {""fa"": ""دوبل — ۷۰٪ عربیکا / ۳۰٪ روبوستا"", ""en"": ""Double — 70% Arabica / 30% Robusta"", ""price"": 198000}, {""fa"": ""تک — ۱۰۰٪ عربیکا"", ""en"": ""Single — 100% Arabica"", ""price"": 154000}, {""fa"": ""دوبل — ۱۰۰٪ عربیکا"", ""en"": ""Double — 100% Arabica"", ""price"": 228000}]",menu,,,,YES,ده ترکیب/اندازه در Price variants ثبت شده است.
+اسپرسو بار,Espresso Bar,آمریکانو,Americano,120000,"[{""fa"": ""تک"", ""en"": ""Single"", ""price"": 120000}, {""fa"": ""دوبل"", ""en"": ""Double"", ""price"": 168000}]",menu,Americano.jpg,/assets/products/americano.webp,,,تک و دوبل در Price variants ثبت شده است.
+اسپرسو بار,Espresso Bar,کورتادو,Cortado,148000,"[{""fa"": ""تک"", ""en"": ""Single"", ""price"": 148000}, {""fa"": ""دوبل"", ""en"": ""Double"", ""price"": 198000}]",menu,,,,YES,تک و دوبل در Price variants ثبت شده است.
+اسپرسو بار,Espresso Bar,لاته,Latte,210000,[],menu,Latte.jpg,/assets/products/latte.webp,,,
+اسپرسو بار,Espresso Bar,موکا,Mocha,245000,[],menu,Mocha.jpg,/assets/products/mocha.webp,,,
+اسپرسو بار,Espresso Bar,کوکو موکا,Coco Mocha,280000,[],menu,,,,YES,
+اسپرسو بار,Espresso Bar,کاپوچینو کلاسیک,Classic Cappuccino,195000,[],menu,Cappuccino.jpg,/assets/products/cappuccino.webp,,,
+اسپرسو بار سرد,Iced Espresso Bar,آیس آمریکانو,Iced Americano,150000,[],menu,Ice Americano.jpg,/assets/products/ice-americano.webp,,,
+اسپرسو بار سرد,Iced Espresso Bar,آیس لاته,Iced Latte,210000,[],menu,Ice Latte.jpg,/assets/products/ice-latte.webp,,,
+اسپرسو بار سرد,Iced Espresso Bar,آیس موکا,Iced Mocha,250000,[],menu,Ice Mocha.jpg,/assets/products/ice-mocha.webp,,,
+اسپرسو بار سرد,Iced Espresso Bar,فراپاچینو,Frappuccino,285000,[],menu,Frappuccino.jpg,/assets/products/frappuccino.webp,,,
+اسپرسو بار سرد,Iced Espresso Bar,آفوگاتو,Affogato,265000,[],menu,Affogato.jpg,/assets/products/affogato.webp,,,
+نوشیدنی گرم,Hot Drinks,نسکافه کلاسیک,Classic Nescafe,160000,[],menu,Nescafe.jpg,/assets/products/nescafe.webp,,,
+نوشیدنی گرم,Hot Drinks,کاپوچینو (شیر + پودر),Cappuccino (Milk + Powder),160000,[],menu,Cappuccino.jpg,/assets/products/cappuccino.webp,,,تصویر با کاپوچینو کلاسیک مشترک است.
+نوشیدنی گرم,Hot Drinks,کافی میکس,Coffee Mix,160000,[],menu,,,,YES,
+نوشیدنی گرم,Hot Drinks,ماسالا,Masala,160000,[],menu,Masala.jpg,/assets/products/masala.webp,,,
+نوشیدنی گرم,Hot Drinks,کرک,Karak,198000,[],menu,Karak.jpg,/assets/products/karak.webp,,,
+نوشیدنی گرم,Hot Drinks,هات چاکلت,Hot Chocolate,198000,[],menu,Hot Chocolate.jpg,/assets/products/hot-chocolate.webp,,,
+نوشیدنی گرم,Hot Drinks,وایت چاکلت,White Chocolate,160000,[],menu,White Chocolate.jpg,/assets/products/white-chocolate.webp,,,
+نوشیدنی گرم,Hot Drinks,پینک چاکلت,Pink Chocolate,160000,[],menu,Pink Chocolate.jpg,/assets/products/pink-chocolate.webp,,,
+نوشیدنی گرم,Hot Drinks,کوکو جینجر,Coco Ginger,180000,[],menu,Coco Ginger.jpg,/assets/products/coco-ginger.webp,,,
+نوشیدنی گرم,Hot Drinks,شیر عسل,Honey & Milk,160000,[],menu,Honey & Milk.jpg,/assets/products/honey-and-milk.webp,,,
+نوشیدنی گرم,Hot Drinks,ماچا لاته,Matcha Latte,210000,[],menu,Matcha Latte.jpg,/assets/products/matcha-latte.webp,,,
+نوشیدنی گرم,Hot Drinks,اسپیرولینا لاته,Spirulina Latte,210000,[],menu,Spirulina latte.jpg,/assets/products/spirulina-latte.webp,,,
+میلک‌شیک,Milkshakes,شیک وانیل,Vanilla Milkshake,255000,[],menu,Vanilla Milkshake.jpg,/assets/products/vanilla-milkshake.webp,,,
+میلک‌شیک,Milkshakes,شیک شکلات,Chocolate Milkshake,290000,[],menu,Chocolate Milkshake.jpg,/assets/products/chocolate-milkshake.webp,,,
+میلک‌شیک,Milkshakes,شیک نوتلا,Nutella Milkshake,370000,[],menu,Nutella Milkshake.jpg,/assets/products/nutella-milkshake.webp,,,
+میلک‌شیک,Milkshakes,شیک بادام‌زمینی,Peanut Milkshake,330000,[],menu,Peanut Milkshake.jpg,/assets/products/peanut-milkshake.webp,,,
+میلک‌شیک,Milkshakes,شیک لوتوس,Lotus Milkshake,330000,[],menu,Lotus Milkshake.jpg,/assets/products/lotus-milkshake.webp,,,
+میلک‌شیک,Milkshakes,شیک توت‌فرنگی,Strawberry Milkshake,310000,[],menu,Strawberry Milkshake.jpg,/assets/products/strawberry-milkshake.webp,,,
+نوشیدنی گرم ویژه,Zaal Hot Specials,پسته داغ زال,Zaal’s Hot Pistachio,248000,[],menu,Hot Pistachio.jpg,/assets/products/hot-pistachio.webp,,,
+نوشیدنی گرم ویژه,Zaal Hot Specials,پسته زعفرانی,Saffron Pistachio,248000,[],menu,Saffron Pistachio.jpg,/assets/products/saffron-pistachio.webp,,,
+نوشیدنی گرم ویژه,Zaal Hot Specials,اکسیر زال,Zaal’s Elixir,0,[],menu,,,YES,YES,قیمت و تصویر موجود نبود.
+نوشیدنی سرد,Cold Drinks,لیموناد,Lemonade,210000,[],menu,Lemonade.jpg,/assets/products/lemonade.webp,,,
+نوشیدنی سرد,Cold Drinks,موهیتو,Mojito,0,[],menu,Mojito.jpg,/assets/products/mojito.webp,YES,,قیمت موجود نبود.
+نوشیدنی سرد,Cold Drinks,رد موهیتو,Red Mojito,0,[],menu,Red Mojito.jpg,/assets/products/red-mojito.webp,YES,,قیمت موجود نبود.
+نوشیدنی سرد,Cold Drinks,گرین سوییت,Green Sweet,270000,[],menu,Green Sweet.jpg,/assets/products/green-sweet.webp,,,
+نوشیدنی سرد,Cold Drinks,مانگو بری,Mango Berry,300000,[],menu,Mango Berry.jpg,/assets/products/mango-berry.webp,,,
+نوشیدنی سرد,Cold Drinks,بلو کوکو,Blue Coco,300000,[],menu,Blue Coco.jpg,/assets/products/blue-coco.webp,,,
+نوشیدنی سرد,Cold Drinks,رد جویس,Red Juice,285000,[],menu,Red Juice.jpg,/assets/products/red-juice.webp,,,
+نوشیدنی سرد,Cold Drinks,چاکلت بستنی,Chocolate Ice Cream,288000,[],menu,Chocolate Icecream.jpg,/assets/products/chocolate-icecream.webp,,,
+نوشیدنی سرد,Cold Drinks,آیس ماچا لاته,Iced Matcha Latte,228000,[],menu,Ice Matcha Latte.jpg,/assets/products/ice-matcha-latte.webp,,,
+نوشیدنی سرد,Cold Drinks,آیس اسپیرولینا لاته,Iced Spirulina Latte,228000,[],menu,Ice Spirulina Latte.jpg,/assets/products/ice-spirulina-latte.webp,,,
+چای و دمنوش,Tea & Herbal Infusions,چای سیاه,Black Tea,90000,[],menu,,,,YES,
+چای و دمنوش,Tea & Herbal Infusions,چای آتشی,Fire-Brewed Tea,0,[],menu,,,YES,YES,قیمت و تصویر موجود نبود.
+چای و دمنوش,Tea & Herbal Infusions,دمنوش بهشت سیب,Apple Paradise Herbal Tea,156000,[],menu,Apple Paradise.jpg,/assets/products/apple-paradise.webp,,,
+چای و دمنوش,Tea & Herbal Infusions,دمنوش رویای اسطوخودوس,Lavender Dream Herbal Tea,156000,[],menu,Lavender Dream.jpg,/assets/products/lavender-dream.webp,,,
+چای و دمنوش,Tea & Herbal Infusions,دمنوش نعنا مراکشی,Moroccan Mint Herbal Tea,168000,[],menu,Moroccan Mint.jpg,/assets/products/moroccan-mint.webp,,,
+چای و دمنوش,Tea & Herbal Infusions,دمنوش ملکه توت,Queen Berry Herbal Tea,194000,[],menu,Queen Berry.jpg,/assets/products/queen-berry.webp,,,
+قهوه دمی,Brewed Coffee,قهوه ترک,Turkish Coffee,170000,[],menu,Turkish.jpg,/assets/products/turkish.webp,,,
+قهوه دمی,Brewed Coffee,قهوه یونانی,Greek Coffee,190000,[],menu,Greek.jpg,/assets/products/greek.webp,,,
+قهوه دمی,Brewed Coffee,کلد برو,Cold Brew,0,[],menu,Cold Brow.jpg,/assets/products/cold-brow.webp,YES,,قیمت موجود نبود؛ نام فایل تصویر Cold Brow است.
+قهوه دمی,Brewed Coffee,لمون کلد برو,Lemon Cold Brew,0,[],menu,,,YES,YES,قیمت و تصویر موجود نبود.
+شیرینی و دسر,Pastry & Dessert,کوکی پنیر و شکلات,Chocolate Cheese Cookie,0,[],image-only,Chocolate Cheese Cookie.jpeg,/assets/products/chocolate-cheese-cookie.webp,YES,,در منوی چاپی نبود؛ قیمت بعداً تکمیل شود.
+شیرینی و دسر,Pastry & Dessert,کوکی نیویورکی,New York Cookie,0,[],image-only,NewYork Cookie.jpeg,/assets/products/newyork-cookie.webp,YES,,در منوی چاپی نبود؛ قیمت بعداً تکمیل شود.
+شیرینی و دسر,Pastry & Dessert,کوکی دبل چاکلت,Double Chocolate Cookie,0,[],image-only,Dubble Chocolate Cookie.jpeg,/assets/products/dubble-chocolate-cookie.webp,YES,,در منوی چاپی نبود؛ املای فایل منبع Dubble است.
+شیرینی و دسر,Pastry & Dessert,کیک شکلاتی,Chocolate Cake,0,[],image-only,Chocolate Cake.png,/assets/products/chocolate-cake.webp,YES,,در منوی چاپی نبود؛ قیمت بعداً تکمیل شود.
+شیرینی و دسر,Pastry & Dessert,چیزکیک,Cheesecake,0,[],image-only,Cheese Cake.png,/assets/products/cheese-cake.webp,YES,,در منوی چاپی نبود؛ قیمت بعداً تکمیل شود.
+شیرینی و دسر,Pastry & Dessert,کیک عسل,Honey Cake,0,[],image-only,Honey Cake.png,/assets/products/honey-cake.webp,YES,,در منوی چاپی نبود؛ قیمت بعداً تکمیل شود.

@@ -1,52 +1,43 @@
-# زال / Zaal — D1-backed website
+# زال / Zaal — وب‌سایت و منوی دیجیتال D1
 
-وب‌سایت دوزبانه، منوی دیجیتال و پنل مدیریت زال روی Cloudflare Workers Static Assets و Cloudflare D1.
+این بسته شامل نسخهٔ واقعی منوی زال برای Cloudflare Workers Static Assets و Cloudflare D1 است.
+
+## محتوای نسخه
+
+- ۹ دسته‌بندی و ۵۹ محصول؛ ۵۳ محصول از منوی چاپی و ۶ محصول فقط از ZIP تصاویر
+- ۵۰ تصویر WebP بهینه‌شده در `public/assets/products/`
+- ۱۲ محصول بدون قیمت با نمایش «قیمت به‌زودی / Price pending»
+- ۸ محصول بدون تصویر با Placeholder برند
+- Price variantهای اسپرسو، آمریکانو و کورتادو
+- شرح، روایت، محتویات، آلرژن و Dietary برای تکمیل بعدی
+- Taste/Palate فعلاً بر اساس نام محصول برچسب‌گذاری اولیه شده و باید توسط باریستا بازبینی شود
+
+فهرست بازبینی در `data/menu-import-review.csv` و کاتالوگ مستقل در `data/catalog-real-v1.json` است.
 
 ## مسیرها
 
 - `/fa/` و `/en/`: سایت برند
 - `/fa/menu/` و `/en/menu/`: منوی عمومی
-- `/admin/`: پنل مدیریت محافظت‌شده با HTTP Basic Auth
-- `/api/catalog`: API عمومی و فقط‌خواندنی منو
-- `/api/health`: سلامت اتصال D1
-- `/admin/api/catalog`: API مدیریت محافظت‌شده
+- `/admin/`: پنل مدیریت
+- `/api/catalog`: کاتالوگ عمومی
+- `/api/health`: سلامت D1 و revision
 
-## رفتار داده
+## Deploy
 
-کاتالوگ در یک رکورد نسخه‌دار D1 ذخیره می‌شود. هر ذخیره از پنل، revision را افزایش می‌دهد و Trigger پایگاه داده نسخهٔ قبلی را در `catalog_history` نگه می‌دارد. به‌روزرسانی هم‌زمان با optimistic concurrency کنترل می‌شود.
+- Branch: `main`
+- Root: `/`
+- Build command: خالی
+- Deploy command: `node deploy.mjs`
+- Build secret: `ADMIN_PASSWORD`
 
-## راه‌اندازی Cloudflare
+## وارد کردن منوی واقعی در D1
 
-1. در Cloudflare یک D1 database با نام `zaal-cafe-prod` بسازید.
-2. UUID پایگاه داده را جای `REPLACE_WITH_D1_DATABASE_ID` در `wrangler.jsonc` قرار دهید.
-3. فایل `migrations/0001_catalog.sql` را روی D1 اجرا کنید:
+Deploy کاتالوگ جاری D1 را خودکار overwrite نمی‌کند. پس از Build موفق:
 
-```bash
-npx wrangler d1 migrations apply zaal-cafe-prod --remote
-```
+1. `https://zaalcafe.ir/admin/` را باز کنید.
+2. دکمهٔ «بارگذاری منوی واقعی» را بزنید.
+3. «بارگذاری و ذخیره» را تأیید کنید.
+4. revision یک واحد افزایش می‌یابد و نسخهٔ قبلی در `catalog_history` باقی می‌ماند.
+5. `/api/health`، `/fa/menu/` و `/en/menu/` را بررسی کنید.
 
-4. در Worker > Settings > Variables and Secrets یک Secret الزامی بسازید:
-
-```text
-ADMIN_PASSWORD=<strong unique password>
-```
-
-نام کاربری پیش‌فرض `zaal-admin` است. برای تغییر آن، `ADMIN_USERNAME` را نیز به‌صورت Secret یا variable تعریف کنید.
-
-5. Deploy:
-
-```bash
-npx wrangler deploy
-```
-
-## امنیت
-
-- رمز در Repository یا `wrangler.jsonc` قرار نمی‌گیرد.
-- همهٔ مسیرهای `/admin` و `/admin/*` پیش از Static Assets در Worker احراز هویت می‌شوند.
-- API نوشتن فقط same-origin و `application/json` را می‌پذیرد.
-- ذخیره با revision انجام می‌شود تا یک نشست، تغییر نشست دیگر را بی‌صدا overwrite نکند.
-- Basic Auth فقط روی HTTPS استفاده شود. برای یک CMS بزرگ‌تر یا چندمدیره، بعداً به session-based authentication یا یک IdP ارتقا داده شود.
-
-## وضعیت نسخه
-Deployment: Cloudflare Workers + D1
-داده‌ها و تصاویر همچنان Mock هستند. سفارش و پرداخت آنلاین در این فاز فعال نیست. عکس واقعی، Price variantها، آلرژن/Dietary، اطلاعات مراجعه، سیاست Reset موجودی، Canonical metadata و QR نهایی هنوز نیازمند داده یا تأیید کسب‌وکارند.
+برای این نسخه نیازی به اجرای دوبارهٔ Migration نیست. نام کاربری پیش‌فرض `zaal-admin` است و رمز در Repository ذخیره نمی‌شود. سفارش و پرداخت آنلاین فعال نیست.

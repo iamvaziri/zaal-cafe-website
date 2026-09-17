@@ -190,6 +190,11 @@ function validateCatalog(catalog) {
         return `Product ${product.id} has an invalid ${key} value.`;
       }
     }
+    if (product.image !== null && product.image !== undefined && (!validString(product.image, 500) || !/^\/assets\/products\/[a-z0-9-]+\.webp$/.test(product.image))) return `Product ${product.id} has an invalid image path.`;
+    if (!Array.isArray(product.priceVariants) || product.priceVariants.length > 30) return `Product ${product.id} has an invalid priceVariants list.`;
+    for (const variant of product.priceVariants) {
+      if (!isPlainObject(variant) || !validString(variant.fa, 240) || !validString(variant.en, 240) || !Number.isInteger(variant.price) || variant.price < 0 || variant.price > 1000000000) return `Product ${product.id} has an invalid price variant.`;
+    }
   }
 
   const encoded = JSON.stringify(catalog);

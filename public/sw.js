@@ -1,4 +1,4 @@
-const CACHE = "zaal-d1-v2";
+const CACHE = "zaal-real-menu-v3";
 const SHELL = ["/", "/index.html", "/assets/logo.png"];
 
 self.addEventListener("install", (event) => {

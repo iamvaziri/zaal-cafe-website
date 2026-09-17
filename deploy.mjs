@@ -1,36 +1,13 @@
+import { writeFile, rm } from "node:fs/promises";
 import { spawn } from "node:child_process";
-import { rm, writeFile } from "node:fs/promises";
-
 const password = process.env.ADMIN_PASSWORD;
-
-if (!password) {
-  console.error("Missing ADMIN_PASSWORD build secret.");
-  process.exit(1);
-}
-
-const secretsFile = "/tmp/zaal-runtime-secrets.json";
-
-await writeFile(
-  secretsFile,
-  JSON.stringify({ ADMIN_PASSWORD: password }),
-  { mode: 0o600 },
-);
-
-let exitCode = 1;
-
+if (!password) throw new Error("ADMIN_PASSWORD is missing from the Cloudflare build environment.");
+const secretsFile = `/tmp/zaal-runtime-secrets-${process.pid}.json`;
+await writeFile(secretsFile, JSON.stringify({ ADMIN_PASSWORD: password }), { mode: 0o600 });
 try {
-  exitCode = await new Promise((resolve, reject) => {
-    const child = spawn(
-      "npx",
-      ["wrangler", "deploy", "--secrets-file", secretsFile],
-      { stdio: "inherit" },
-    );
-
-    child.on("error", reject);
-    child.on("exit", (code) => resolve(code ?? 1));
+  const code = await new Promise((resolve, reject) => {
+    const child = spawn(process.platform === "win32" ? "npx.cmd" : "npx", ["wrangler", "deploy", "--secrets-file", secretsFile], { stdio: "inherit", env: process.env });
+    child.on("error", reject); child.on("close", resolve);
   });
-} finally {
-  await rm(secretsFile, { force: true });
-}
-
-process.exit(exitCode);
+  if (code !== 0) process.exitCode = code;
+} finally { await rm(secretsFile, { force: true }); }
