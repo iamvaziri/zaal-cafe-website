@@ -48,5 +48,5 @@ npx wrangler deploy
 - Basic Auth فقط روی HTTPS استفاده شود. برای یک CMS بزرگ‌تر یا چندمدیره، بعداً به session-based authentication یا یک IdP ارتقا داده شود.
 
 ## وضعیت نسخه
-
+Deployment: Cloudflare Workers + D1
 داده‌ها و تصاویر همچنان Mock هستند. سفارش و پرداخت آنلاین در این فاز فعال نیست. عکس واقعی، Price variantها، آلرژن/Dietary، اطلاعات مراجعه، سیاست Reset موجودی، Canonical metadata و QR نهایی هنوز نیازمند داده یا تأیید کسب‌وکارند.
