@@ -5,6 +5,10 @@ const JSON_HEADERS = {
   "referrer-policy": "same-origin",
 };
 
+const SESSION_COOKIE = "zaal_admin_session";
+const SESSION_MAX_AGE_SHORT = 60 * 60 * 24 * 7;
+const SESSION_MAX_AGE_REMEMBER = 60 * 60 * 24 * 30;
+
 function json(data, status = 200, extraHeaders = {}) {
   return new Response(JSON.stringify(data), {
     status,
@@ -29,61 +33,6 @@ async function timingSafeEqual(a, b) {
     difference |= left[index] ^ right[index];
   }
   return difference === 0;
-}
-
-function parseBasicAuthorization(value) {
-  if (!value || !value.startsWith("Basic ")) return null;
-  try {
-    const decoded = atob(value.slice(6));
-    const separator = decoded.indexOf(":");
-    if (separator < 0) return null;
-    return {
-      username: decoded.slice(0, separator),
-      password: decoded.slice(separator + 1),
-    };
-  } catch {
-    return null;
-  }
-}
-
-async function isAuthorized(request, env) {
-  if (!env.ADMIN_PASSWORD) return false;
-  const credentials = parseBasicAuthorization(
-    request.headers.get("authorization"),
-  );
-  if (!credentials) return false;
-  const expectedUsername = env.ADMIN_USERNAME || "zaal-admin";
-  const [usernameMatches, passwordMatches] = await Promise.all([
-    timingSafeEqual(credentials.username, expectedUsername),
-    timingSafeEqual(credentials.password, env.ADMIN_PASSWORD),
-  ]);
-  return usernameMatches && passwordMatches;
-}
-
-function unauthorized(missingConfiguration = false) {
-  if (missingConfiguration) {
-    return new Response(
-      "Zaal admin authentication is not configured. Set ADMIN_PASSWORD as a Worker secret.",
-      {
-        status: 503,
-        headers: {
-          "content-type": "text/plain; charset=utf-8",
-          "cache-control": "no-store",
-          "x-content-type-options": "nosniff",
-        },
-      },
-    );
-  }
-
-  return new Response("Authentication required / ورود مدیر لازم است", {
-    status: 401,
-    headers: {
-      "www-authenticate": 'Basic realm="Zaal Admin", charset="UTF-8"',
-      "content-type": "text/plain; charset=utf-8",
-      "cache-control": "no-store",
-      "x-content-type-options": "nosniff",
-    },
-  });
 }
 
 function isPlainObject(value) {
@@ -232,6 +181,176 @@ function validateCatalog(catalog) {
   return null;
 }
 
+function sameOrigin(request) {
+  const origin = request.headers.get("origin");
+  return !origin || origin === new URL(request.url).origin;
+}
+
+function base64UrlEncodeBytes(bytes) {
+  let binary = "";
+  for (const byte of bytes) binary += String.fromCharCode(byte);
+  return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+}
+
+function base64UrlEncodeString(value) {
+  return base64UrlEncodeBytes(new TextEncoder().encode(value));
+}
+
+function base64UrlDecodeToString(value) {
+  const normalized = value.replace(/-/g, "+").replace(/_/g, "/");
+  const padding = normalized.length % 4 === 0 ? "" : "=".repeat(4 - (normalized.length % 4));
+  const binary = atob(normalized + padding);
+  const bytes = Uint8Array.from(binary, (char) => char.charCodeAt(0));
+  return new TextDecoder().decode(bytes);
+}
+
+async function hmacSign(secret, value) {
+  const key = await crypto.subtle.importKey(
+    "raw",
+    new TextEncoder().encode(secret),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"],
+  );
+  const signature = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(value));
+  return base64UrlEncodeBytes(new Uint8Array(signature));
+}
+
+function parseCookies(request) {
+  const header = request.headers.get("cookie");
+  if (!header) return {};
+  return Object.fromEntries(
+    header
+      .split(/;\s*/)
+      .map((part) => {
+        const [name, ...value] = part.split("=");
+        return [name, value.join("=")];
+      })
+      .filter(([name]) => Boolean(name)),
+  );
+}
+
+function getSessionSecret(env) {
+  return env.ADMIN_SESSION_SECRET || env.ADMIN_PASSWORD || "";
+}
+
+async function createSessionToken(env, remember) {
+  const maxAge = remember ? SESSION_MAX_AGE_REMEMBER : SESSION_MAX_AGE_SHORT;
+  const payload = {
+    v: 1,
+    exp: Math.floor(Date.now() / 1000) + maxAge,
+  };
+  const encodedPayload = base64UrlEncodeString(JSON.stringify(payload));
+  const signature = await hmacSign(getSessionSecret(env), encodedPayload);
+  return { token: `${encodedPayload}.${signature}`, maxAge };
+}
+
+async function verifySessionToken(token, env) {
+  if (!token || !getSessionSecret(env)) return false;
+  const [encodedPayload, signature] = token.split(".");
+  if (!encodedPayload || !signature) return false;
+  const expectedSignature = await hmacSign(getSessionSecret(env), encodedPayload);
+  if (!(await timingSafeEqual(signature, expectedSignature))) return false;
+  let payload;
+  try {
+    payload = JSON.parse(base64UrlDecodeToString(encodedPayload));
+  } catch {
+    return false;
+  }
+  if (!payload || payload.v !== 1 || !Number.isInteger(payload.exp)) return false;
+  return payload.exp > Math.floor(Date.now() / 1000);
+}
+
+async function isAuthenticated(request, env) {
+  const cookies = parseCookies(request);
+  return verifySessionToken(cookies[SESSION_COOKIE], env);
+}
+
+function sessionCookieHeader(token, maxAge) {
+  return `${SESSION_COOKIE}=${token}; Max-Age=${maxAge}; Path=/admin; HttpOnly; Secure; SameSite=Lax`;
+}
+
+function clearSessionCookieHeader() {
+  return `${SESSION_COOKIE}=; Max-Age=0; Path=/admin; HttpOnly; Secure; SameSite=Lax`;
+}
+
+function normalizeNextPath(value) {
+  if (!value || typeof value !== "string") return "/admin/";
+  if (!value.startsWith("/admin")) return "/admin/";
+  if (value.startsWith("//")) return "/admin/";
+  return value;
+}
+
+function htmlResponse(markup, status = 200, extraHeaders = {}) {
+  return new Response(markup, {
+    status,
+    headers: {
+      "content-type": "text/html; charset=utf-8",
+      "cache-control": "no-store",
+      "x-content-type-options": "nosniff",
+      "referrer-policy": "same-origin",
+      "x-frame-options": "DENY",
+      "x-robots-tag": "noindex, nofollow",
+      ...extraHeaders,
+    },
+  });
+}
+
+function redirectResponse(location, extraHeaders = {}) {
+  return new Response(null, {
+    status: 303,
+    headers: {
+      location,
+      "cache-control": "no-store",
+      ...extraHeaders,
+    },
+  });
+}
+
+function escapeHtml(value = "") {
+  return String(value).replace(/[&<>'"]/g, (char) => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    "'": "&#39;",
+    '"': "&quot;",
+  })[char]);
+}
+
+function renderLoginPage(nextPath, hasError = false) {
+  return `<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="robots" content="noindex,nofollow">
+  <meta name="theme-color" content="#5E716B">
+  <title>ورود مدیر | زال کافه</title>
+  <link rel="preload" href="/assets/fonts/vazirmatn-variable.woff2" as="font" type="font/woff2" crossorigin>
+  <style>
+    @font-face{font-family:'Vazirmatn';src:url('/assets/fonts/vazirmatn-variable.woff2') format('woff2');font-style:normal;font-weight:100 900;font-display:swap}
+    :root{--g:#5E716B;--o:#E35335;--m:#f5f5f2;--line:rgba(0,0,0,.14)}*{box-sizing:border-box}body{margin:0;min-height:100svh;display:grid;place-items:center;background:linear-gradient(180deg,#f7f7f4,#ece9e1);color:#111;font:15px/1.8 'Vazirmatn','Noto Sans Arabic',Tahoma,Arial,sans-serif;padding:1rem}form{width:min(420px,100%);background:#fff;border:1px solid var(--line);border-radius:28px;padding:1.2rem 1.2rem 1.35rem;box-shadow:0 20px 60px rgba(0,0,0,.08)}h1{margin:.25rem 0 0;font-size:1.9rem;line-height:1.1}p{margin:.45rem 0 0;color:#666}.badge{display:inline-block;padding:.3rem .65rem;border-radius:999px;background:#eef1ef;color:var(--g);font-weight:800;font-size:.82rem}label{display:grid;gap:.35rem;margin-top:1rem;font-weight:800;font-size:.84rem}input{min-height:48px;border:1px solid var(--line);border-radius:14px;padding:.75rem .85rem;background:#fff;font:inherit}button{min-height:48px;border:1px solid var(--o);border-radius:14px;background:var(--o);color:#fff;font:inherit;font-weight:900;cursor:pointer;width:100%;margin-top:1rem}.check{display:flex;align-items:center;gap:.55rem;margin-top:.85rem;font-weight:600}.check input{min-height:auto;width:auto}.error{margin-top:1rem;padding:.7rem .85rem;border-radius:14px;background:#fff3f0;border:1px solid #e1b7ae;color:#b5442e}.hint{font-size:.82rem;color:#777;margin-top:.9rem}
+  </style>
+</head>
+<body>
+  <form method="post" action="/admin/login">
+    <span class="badge">Zaal Admin</span>
+    <h1>ورود مدیر</h1>
+    <p>برای ورود به پنل مدیریت منو، رمز عبور را وارد کن.</p>
+    ${hasError ? '<div class="error">رمز عبور نادرست است یا نشست معتبر نیست.</div>' : ''}
+    <input type="hidden" name="next" value="${escapeHtml(nextPath)}">
+    <label>
+      <span>رمز عبور</span>
+      <input type="password" name="password" autocomplete="current-password" required autofocus>
+    </label>
+    <label class="check"><input type="checkbox" name="remember" value="1"> مرا برای ۳۰ روز وارد نگه دار</label>
+    <button type="submit">ورود</button>
+    <div class="hint">اگر این گزینه فعال نباشد، نشست به‌طور پیش‌فرض ۷ روز معتبر می‌ماند.</div>
+  </form>
+</body>
+</html>`;
+}
+
 async function readCatalog(env) {
   if (!env.DB) throw new Error("D1 binding DB is missing.");
   const row = await env.DB.prepare(
@@ -257,11 +376,6 @@ async function getCatalog(env) {
       "CATALOG_UNAVAILABLE",
     );
   }
-}
-
-function sameOrigin(request) {
-  const origin = request.headers.get("origin");
-  return !origin || origin === new URL(request.url).origin;
 }
 
 async function putCatalog(request, env) {
@@ -380,6 +494,37 @@ function withAdminHeaders(response) {
   });
 }
 
+async function handleLogin(request, env, url) {
+  if (!env.ADMIN_PASSWORD) {
+    return htmlResponse("Zaal admin authentication is not configured.", 503);
+  }
+  if (!sameOrigin(request)) {
+    return errorResponse("Cross-origin writes are not allowed.", 403, "BAD_ORIGIN");
+  }
+  const form = await request.formData();
+  const password = String(form.get("password") || "");
+  const nextPath = normalizeNextPath(String(form.get("next") || "/admin/"));
+  const remember = form.get("remember") === "1";
+  if (!(await timingSafeEqual(password, env.ADMIN_PASSWORD))) {
+    return htmlResponse(renderLoginPage(nextPath, true), 401);
+  }
+  const session = await createSessionToken(env, remember);
+  return redirectResponse(nextPath, {
+    "set-cookie": sessionCookieHeader(session.token, session.maxAge),
+  });
+}
+
+function handleLogout() {
+  return redirectResponse("/admin/login", {
+    "set-cookie": clearSessionCookieHeader(),
+  });
+}
+
+function handleLoginPage(request, url) {
+  const nextPath = normalizeNextPath(url.searchParams.get("next") || "/admin/");
+  return htmlResponse(renderLoginPage(nextPath, false));
+}
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
@@ -399,10 +544,33 @@ export default {
       return health(env);
     }
 
+    if (path === "/admin/login") {
+      if (await isAuthenticated(request, env)) {
+        return redirectResponse("/admin/");
+      }
+      if (request.method === "GET") return handleLoginPage(request, url);
+      if (request.method === "POST") return handleLogin(request, env, url);
+      return errorResponse("Method not allowed.", 405, "METHOD_NOT_ALLOWED");
+    }
+
+    if (path === "/admin/logout") {
+      if (request.method === "POST") return handleLogout();
+      return errorResponse("Method not allowed.", 405, "METHOD_NOT_ALLOWED");
+    }
+
     const adminPath = path === "/admin" || path.startsWith("/admin/");
     if (adminPath) {
-      if (!env.ADMIN_PASSWORD) return unauthorized(true);
-      if (!(await isAuthorized(request, env))) return unauthorized(false);
+      if (!env.ADMIN_PASSWORD) {
+        return htmlResponse("Zaal admin authentication is not configured.", 503);
+      }
+      const authenticated = await isAuthenticated(request, env);
+      if (!authenticated) {
+        if (path === "/admin/api/catalog") {
+          return errorResponse("Authentication required.", 401, "UNAUTHORIZED");
+        }
+        const nextPath = normalizeNextPath(`${path}${url.search}`);
+        return htmlResponse(renderLoginPage(nextPath, false), 401);
+      }
 
       if (path === "/admin/api/catalog") {
         if (request.method === "GET") return getCatalog(env);
