@@ -5,8 +5,6 @@ const JSON_HEADERS = {
   "referrer-policy": "same-origin",
 };
 
-const PUBLIC_VISIBILITY_HOTFIX = "<script id=\"zaal-public-visibility-hotfix\">\n(() => {\n  const isVisible = (product) => product && product.status !== \"hidden\";\n\n  renderFeatured = function renderFeaturedPatched() {\n    const rail = document.getElementById(\"featuredRail\");\n    if (!rail) return;\n    const products = [\"zaal-hot-pistachio\", \"blue-coco\", \"iced-matcha-latte\"]\n      .map((id) => DATA.products.find((product) => product.id === id))\n      .filter(isVisible);\n    rail.innerHTML = products\n      .map(\n        (p) =>\n          `<button class=\"feature-card\" type=\"button\" data-product=\"${p.id}\" aria-label=\"${escapeHTML(productName(p))}\">${media(p)}<span class=\"feature-price\">${money(p.price)}</span><span class=\"feature-meta\"><small>${escapeHTML(catName(p.categoryId))}</small><h3>${escapeHTML(productName(p))}</h3><p>${escapeHTML(FEATURE_COPY[p.id][lang])}</p></span></button>`,\n      )\n      .join(\"\");\n  };\n\n  filtered = function filteredPatched() {\n    const q = query.trim().toLowerCase();\n    return DATA.products.filter(\n      (p) =>\n        isVisible(p) &&\n        (category === \"all\" || p.categoryId === category) &&\n        matchesTaste(p) &&\n        (!q ||\n          [\n            p.i.fa.n,\n            p.i.en.n,\n            p.i.fa.s,\n            p.i.en.s,\n            ...p.tasteTags.flatMap(tagSearchNames),\n            ...p.palateTags.flatMap(tagSearchNames),\n          ]\n            .join(\" \")\n            .toLowerCase()\n            .includes(q)),\n    );\n  };\n\n  renderProducts = function renderProductsPatched() {\n    const products = filtered();\n    const visibleTotal = DATA.products.filter(isVisible).length;\n    $('#productGrid').innerHTML = products\n      .map(\n        (p) =>\n          `<button class=\"product-card\" type=\"button\" data-product=\"${p.id}\"><span class=\"product-image\">${media(p)}</span><span class=\"product-info\"><span class=\"product-top\"><h3>${escapeHTML(productName(p))}</h3><span class=\"product-price\">${money(p.price)}</span></span><span class=\"product-story\">${escapeHTML(storyFor(p))}</span><span class=\"tag-row\">${p.tasteTags.slice(0, 2).map((x) => `<span class=\"tag\">${escapeHTML(tasteName(x))}</span>`).join(\"\")}${!productImageSrc(p) ? `<span class=\"tag warn\">${lang === \"fa\" ? \"تصویر موقت\" : \"Temporary art\"}</span>` : \"\"}</span></span></button>`,\n      )\n      .join(\"\");\n    $('#emptyState').classList.toggle('show', products.length === 0);\n    $('#resultLabel').textContent = `${faDigits(products.length)} ${t('results')}`;\n    $('#menuCount').textContent = `${faDigits(visibleTotal)} ${t('results')}`;\n    $('#filterBtn').classList.toggle('has-filter', !!taste);\n  };\n\n  renderAll();\n})();\n</script>";
-
 function json(data, status = 200, extraHeaders = {}) {
   return new Response(JSON.stringify(data), {
     status,
@@ -174,7 +172,11 @@ function validateCatalog(catalog) {
     ) {
       return `Product ${product.id} has an invalid price.`;
     }
-    if (!isPlainObject(product.i) || !isPlainObject(product.i.fa) || !isPlainObject(product.i.en)) {
+    if (
+      !isPlainObject(product.i) ||
+      !isPlainObject(product.i.fa) ||
+      !isPlainObject(product.i.en)
+    ) {
       return `Product ${product.id} is missing bilingual content.`;
     }
     for (const language of ["fa", "en"]) {
@@ -184,7 +186,13 @@ function validateCatalog(catalog) {
         }
       }
     }
-    for (const key of ["aliases", "tasteTags", "palateTags", "allergens", "dietary"]) {
+    for (const key of [
+      "aliases",
+      "tasteTags",
+      "palateTags",
+      "allergens",
+      "dietary",
+    ]) {
       if (!Array.isArray(product[key]) || product[key].length > 100) {
         return `Product ${product.id} has an invalid ${key} list.`;
       }
@@ -192,10 +200,28 @@ function validateCatalog(catalog) {
         return `Product ${product.id} has an invalid ${key} value.`;
       }
     }
-    if (product.image !== null && product.image !== undefined && (!validString(product.image, 500) || !/^\/assets\/products\/[a-z0-9-]+\.webp$/.test(product.image))) return `Product ${product.id} has an invalid image path.`;
-    if (!Array.isArray(product.priceVariants) || product.priceVariants.length > 30) return `Product ${product.id} has an invalid priceVariants list.`;
+    if (
+      product.image !== null &&
+      product.image !== undefined &&
+      (!validString(product.image, 500) ||
+        !/^\/assets\/products\/[a-z0-9-]+\.webp$/.test(product.image))
+    ) {
+      return `Product ${product.id} has an invalid image path.`;
+    }
+    if (!Array.isArray(product.priceVariants) || product.priceVariants.length > 30) {
+      return `Product ${product.id} has an invalid priceVariants list.`;
+    }
     for (const variant of product.priceVariants) {
-      if (!isPlainObject(variant) || !validString(variant.fa, 240) || !validString(variant.en, 240) || !Number.isInteger(variant.price) || variant.price < 0 || variant.price > 1000000000) return `Product ${product.id} has an invalid price variant.`;
+      if (
+        !isPlainObject(variant) ||
+        !validString(variant.fa, 240) ||
+        !validString(variant.en, 240) ||
+        !Number.isInteger(variant.price) ||
+        variant.price < 0 ||
+        variant.price > 1000000000
+      ) {
+        return `Product ${product.id} has an invalid price variant.`;
+      }
     }
   }
 
@@ -205,7 +231,6 @@ function validateCatalog(catalog) {
   }
   return null;
 }
-
 
 async function readCatalog(env) {
   if (!env.DB) throw new Error("D1 binding DB is missing.");
@@ -241,9 +266,17 @@ function sameOrigin(request) {
 
 async function putCatalog(request, env) {
   if (!sameOrigin(request)) {
-    return errorResponse("Cross-origin writes are not allowed.", 403, "BAD_ORIGIN");
+    return errorResponse(
+      "Cross-origin writes are not allowed.",
+      403,
+      "BAD_ORIGIN",
+    );
   }
-  if (!request.headers.get("content-type")?.toLowerCase().startsWith("application/json")) {
+  if (
+    !request.headers.get("content-type")?.toLowerCase().startsWith(
+      "application/json",
+    )
+  ) {
     return errorResponse("Expected application/json.", 415, "BAD_CONTENT_TYPE");
   }
 
@@ -288,7 +321,8 @@ async function putCatalog(request, env) {
           ok: false,
           error: {
             code: "REVISION_CONFLICT",
-            message: "The catalog changed in another session. Reload and try again.",
+            message:
+              "The catalog changed in another session. Reload and try again.",
           },
           revision: Number(current?.revision || 0),
           updatedAt: current?.updated_at || null,
@@ -317,12 +351,15 @@ async function health(env) {
     const row = await env.DB.prepare(
       "SELECT revision, updated_at FROM catalog WHERE id = 1",
     ).first();
-    return json({
-      ok: Boolean(row),
-      database: Boolean(row),
-      revision: Number(row?.revision || 0),
-      updatedAt: row?.updated_at || null,
-    }, row ? 200 : 503);
+    return json(
+      {
+        ok: Boolean(row),
+        database: Boolean(row),
+        revision: Number(row?.revision || 0),
+        updatedAt: row?.updated_at || null,
+      },
+      row ? 200 : 503,
+    );
   } catch (error) {
     console.error("health_check_failed", error);
     return errorResponse("Database unavailable.", 503, "DB_UNAVAILABLE");
@@ -337,31 +374,6 @@ function withAdminHeaders(response) {
   headers.set("referrer-policy", "same-origin");
   headers.set("x-frame-options", "DENY");
   return new Response(response.body, {
-    status: response.status,
-    statusText: response.statusText,
-    headers,
-  });
-}
-
-async function withPublicHtmlHotfix(response) {
-  const contentType = response.headers.get("content-type") || "";
-  if (!contentType.includes("text/html")) return response;
-
-  const html = await response.text();
-  if (html.includes("zaal-public-visibility-hotfix")) {
-    return new Response(html, {
-      status: response.status,
-      statusText: response.statusText,
-      headers: response.headers,
-    });
-  }
-
-  const patchedHtml = html.includes("</body>")
-    ? html.replace("</body>", `${PUBLIC_VISIBILITY_HOTFIX}</body>`)
-    : `${html}${PUBLIC_VISIBILITY_HOTFIX}`;
-  const headers = new Headers(response.headers);
-  headers.set("cache-control", "no-store");
-  return new Response(patchedHtml, {
     status: response.status,
     statusText: response.statusText,
     headers,
@@ -401,6 +413,6 @@ export default {
       return withAdminHeaders(await env.ASSETS.fetch(request));
     }
 
-    return withPublicHtmlHotfix(await env.ASSETS.fetch(request));
+    return env.ASSETS.fetch(request);
   },
 };
