@@ -206,20 +206,6 @@ function validateCatalog(catalog) {
   return null;
 }
 
-function filterPublicProducts(products) {
-  if (!Array.isArray(products)) return [];
-  return products.filter(
-    (product) => isPlainObject(product) && product.status !== "hidden",
-  );
-}
-
-function sanitizePublicCatalog(catalog) {
-  if (!isPlainObject(catalog)) return catalog;
-  return {
-    ...catalog,
-    products: filterPublicProducts(catalog.products),
-  };
-}
 
 async function readCatalog(env) {
   if (!env.DB) throw new Error("D1 binding DB is missing.");
@@ -234,12 +220,9 @@ async function readCatalog(env) {
   };
 }
 
-async function getCatalog(env, { publicView = false } = {}) {
+async function getCatalog(env) {
   try {
     const data = await readCatalog(env);
-    if (publicView) {
-      data.catalog = sanitizePublicCatalog(data.catalog);
-    }
     return json({ ok: true, ...data });
   } catch (error) {
     console.error("catalog_read_failed", error);
@@ -394,7 +377,7 @@ export default {
       if (request.method !== "GET") {
         return errorResponse("Method not allowed.", 405, "METHOD_NOT_ALLOWED");
       }
-      return getCatalog(env, { publicView: true });
+      return getCatalog(env);
     }
 
     if (path === "/api/health") {
