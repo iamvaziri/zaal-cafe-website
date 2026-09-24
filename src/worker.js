@@ -5,6 +5,8 @@ const JSON_HEADERS = {
   "referrer-policy": "same-origin",
 };
 
+const PUBLIC_VISIBILITY_HOTFIX = "<script id=\"zaal-public-visibility-hotfix\">\n(() => {\n  const isVisible = (product) => product && product.status !== \"hidden\";\n\n  renderFeatured = function renderFeaturedPatched() {\n    const rail = document.getElementById(\"featuredRail\");\n    if (!rail) return;\n    const products = [\"zaal-hot-pistachio\", \"blue-coco\", \"iced-matcha-latte\"]\n      .map((id) => DATA.products.find((product) => product.id === id))\n      .filter(isVisible);\n    rail.innerHTML = products\n      .map(\n        (p) =>\n          `<button class=\"feature-card\" type=\"button\" data-product=\"${p.id}\" aria-label=\"${escapeHTML(productName(p))}\">${media(p)}<span class=\"feature-price\">${money(p.price)}</span><span class=\"feature-meta\"><small>${escapeHTML(catName(p.categoryId))}</small><h3>${escapeHTML(productName(p))}</h3><p>${escapeHTML(FEATURE_COPY[p.id][lang])}</p></span></button>`,\n      )\n      .join(\"\");\n  };\n\n  filtered = function filteredPatched() {\n    const q = query.trim().toLowerCase();\n    return DATA.products.filter(\n      (p) =>\n        isVisible(p) &&\n        (category === \"all\" || p.categoryId === category) &&\n        matchesTaste(p) &&\n        (!q ||\n          [\n            p.i.fa.n,\n            p.i.en.n,\n            p.i.fa.s,\n            p.i.en.s,\n            ...p.tasteTags.flatMap(tagSearchNames),\n            ...p.palateTags.flatMap(tagSearchNames),\n          ]\n            .join(\" \")\n            .toLowerCase()\n            .includes(q)),\n    );\n  };\n\n  renderProducts = function renderProductsPatched() {\n    const products = filtered();\n    const visibleTotal = DATA.products.filter(isVisible).length;\n    $('#productGrid').innerHTML = products\n      .map(\n        (p) =>\n          `<button class=\"product-card\" type=\"button\" data-product=\"${p.id}\"><span class=\"product-image\">${media(p)}</span><span class=\"product-info\"><span class=\"product-top\"><h3>${escapeHTML(productName(p))}</h3><span class=\"product-price\">${money(p.price)}</span></span><span class=\"product-story\">${escapeHTML(storyFor(p))}</span><span class=\"tag-row\">${p.tasteTags.slice(0, 2).map((x) => `<span class=\"tag\">${escapeHTML(tasteName(x))}</span>`).join(\"\")}${!productImageSrc(p) ? `<span class=\"tag warn\">${lang === \"fa\" ? \"تصویر موقت\" : \"Temporary art\"}</span>` : \"\"}</span></span></button>`,\n      )\n      .join(\"\");\n    $('#emptyState').classList.toggle('show', products.length === 0);\n    $('#resultLabel').textContent = `${faDigits(products.length)} ${t('results')}`;\n    $('#menuCount').textContent = `${faDigits(visibleTotal)} ${t('results')}`;\n    $('#filterBtn').classList.toggle('has-filter', !!taste);\n  };\n\n  renderAll();\n})();\n</script>";
+
 function json(data, status = 200, extraHeaders = {}) {
   return new Response(JSON.stringify(data), {
     status,
@@ -204,6 +206,21 @@ function validateCatalog(catalog) {
   return null;
 }
 
+function filterPublicProducts(products) {
+  if (!Array.isArray(products)) return [];
+  return products.filter(
+    (product) => isPlainObject(product) && product.status !== "hidden",
+  );
+}
+
+function sanitizePublicCatalog(catalog) {
+  if (!isPlainObject(catalog)) return catalog;
+  return {
+    ...catalog,
+    products: filterPublicProducts(catalog.products),
+  };
+}
+
 async function readCatalog(env) {
   if (!env.DB) throw new Error("D1 binding DB is missing.");
   const row = await env.DB.prepare(
@@ -217,9 +234,12 @@ async function readCatalog(env) {
   };
 }
 
-async function getCatalog(env) {
+async function getCatalog(env, { publicView = false } = {}) {
   try {
     const data = await readCatalog(env);
+    if (publicView) {
+      data.catalog = sanitizePublicCatalog(data.catalog);
+    }
     return json({ ok: true, ...data });
   } catch (error) {
     console.error("catalog_read_failed", error);
@@ -340,6 +360,31 @@ function withAdminHeaders(response) {
   });
 }
 
+async function withPublicHtmlHotfix(response) {
+  const contentType = response.headers.get("content-type") || "";
+  if (!contentType.includes("text/html")) return response;
+
+  const html = await response.text();
+  if (html.includes("zaal-public-visibility-hotfix")) {
+    return new Response(html, {
+      status: response.status,
+      statusText: response.statusText,
+      headers: response.headers,
+    });
+  }
+
+  const patchedHtml = html.includes("</body>")
+    ? html.replace("</body>", `${PUBLIC_VISIBILITY_HOTFIX}</body>`)
+    : `${html}${PUBLIC_VISIBILITY_HOTFIX}`;
+  const headers = new Headers(response.headers);
+  headers.set("cache-control", "no-store");
+  return new Response(patchedHtml, {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  });
+}
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
@@ -349,7 +394,7 @@ export default {
       if (request.method !== "GET") {
         return errorResponse("Method not allowed.", 405, "METHOD_NOT_ALLOWED");
       }
-      return getCatalog(env);
+      return getCatalog(env, { publicView: true });
     }
 
     if (path === "/api/health") {
@@ -373,6 +418,6 @@ export default {
       return withAdminHeaders(await env.ASSETS.fetch(request));
     }
 
-    return env.ASSETS.fetch(request);
+    return withPublicHtmlHotfix(await env.ASSETS.fetch(request));
   },
 };
