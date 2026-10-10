@@ -3,7 +3,170 @@ const JSON_HEADERS = {
   "cache-control": "no-store",
   "x-content-type-options": "nosniff",
   "referrer-policy": "same-origin",
+  "x-robots-tag": "noindex",
 };
+
+// ---- Public pages: per-route SEO head (canonical, hreflang, language, titles) ----
+const SITE = "https://zaalcafe.ir";
+const PAGE_ROUTES = {
+  "/": { lang: "fa", view: "home", canonical: "/" },
+  "/fa/": { lang: "fa", view: "home", canonical: "/" },
+  "/en/": { lang: "en", view: "home", canonical: "/en/" },
+  "/fa/menu/": { lang: "fa", view: "menu", canonical: "/fa/menu/" },
+  "/en/menu/": { lang: "en", view: "menu", canonical: "/en/menu/" },
+};
+const ROUTE_REDIRECTS = {
+  "/fa": "/fa/",
+  "/en": "/en/",
+  "/fa/menu": "/fa/menu/",
+  "/en/menu": "/en/menu/",
+  "/menu": "/fa/menu/",
+  "/menu/": "/fa/menu/",
+};
+const ALTERNATES = {
+  home: { fa: "/", en: "/en/", "x-default": "/" },
+  menu: { fa: "/fa/menu/", en: "/en/menu/", "x-default": "/fa/menu/" },
+};
+const PAGE_META = {
+  fa: {
+    home: {
+      title: "زال کافه | منوی دیجیتال و اطلاعات مراجعه",
+      description: "زال کافه در اصفهان؛ منوی دیجیتال دوزبانه، پیشنهاد بر اساس مزه، مسیر مراجعه و داستان زال.",
+    },
+    menu: {
+      title: "منوی زال کافه | نوشیدنی‌ها و قیمت‌ها",
+      description: "منوی کامل زال کافه در اصفهان؛ قهوه و اسپرسو، نوشیدنی‌های گرم و سرد، میلک‌شیک، چای و دمنوش، کیک و کوکی با قیمت و جست‌وجو بر اساس مزه.",
+    },
+    locale: "fa_IR",
+    altLocale: "en_US",
+  },
+  en: {
+    home: {
+      title: "Zaal Cafe | Menu and visitor information",
+      description: "Zaal Cafe in Isfahan: a bilingual digital menu, taste-based picks, directions and the story of Zaal.",
+    },
+    menu: {
+      title: "Zaal Cafe menu | Drinks and prices",
+      description: "The full Zaal Cafe menu in Isfahan: espresso and coffee, hot and cold drinks, milkshakes, tea and herbal infusions, cakes and cookies, with prices and taste-based search.",
+    },
+    locale: "en_US",
+    altLocale: "fa_IR",
+  },
+};
+const PUBLIC_HTML_HEADERS = {
+  "content-type": "text/html; charset=utf-8",
+  "cache-control": "public, max-age=0, must-revalidate",
+  "x-content-type-options": "nosniff",
+  "referrer-policy": "strict-origin-when-cross-origin",
+};
+
+async function servePublicPage(request, env, url, route) {
+  const headers = new Headers(request.headers);
+  headers.delete("if-none-match");
+  headers.delete("if-modified-since");
+  const asset = await env.ASSETS.fetch(new Request(new URL("/", url), { method: "GET", headers }));
+  if (!asset.ok) return asset;
+
+  const { lang, view } = route;
+  const meta = PAGE_META[lang][view];
+  const canonical = SITE + route.canonical;
+  const alternates = Object.entries(ALTERNATES[view])
+    .map(([hl, href]) => `<link rel="alternate" hreflang="${hl}" href="${SITE}${href}">`)
+    .join("\n  ");
+  const heroDir = lang === "en" ? "ltr" : "rtl";
+  const swapHero = (value) => (value || "").replace(/hero-rtl-/g, `hero-${heroDir}-`);
+
+  let rewriter = new HTMLRewriter()
+    .on("html", {
+      element(el) {
+        el.setAttribute("lang", lang);
+        el.setAttribute("dir", lang === "fa" ? "rtl" : "ltr");
+        el.setAttribute("data-view", view);
+      },
+    })
+    .on("title", { element(el) { el.setInnerContent(meta.title); } })
+    .on('meta[name="description"]', { element(el) { el.setAttribute("content", meta.description); } })
+    .on('meta[property="og:title"]', { element(el) { el.setAttribute("content", meta.title); } })
+    .on('meta[property="og:description"]', { element(el) { el.setAttribute("content", meta.description); } })
+    .on('meta[property="og:url"]', { element(el) { el.setAttribute("content", canonical); } })
+    .on('meta[property="og:locale"]', { element(el) { el.setAttribute("content", PAGE_META[lang].locale); } })
+    .on('meta[property="og:locale:alternate"]', { element(el) { el.setAttribute("content", PAGE_META[lang].altLocale); } })
+    .on('link[rel="canonical"]', {
+      element(el) {
+        el.setAttribute("href", canonical);
+        el.after(`\n  ${alternates}`, { html: true });
+      },
+    })
+    .on('link[rel="alternate"][hreflang]', { element(el) { el.remove(); } })
+    .on("#homeView", {
+      element(el) {
+        const cls = (el.getAttribute("class") || "").split(/\s+/).filter((c) => c && c !== "active");
+        if (view === "home") cls.push("active");
+        el.setAttribute("class", cls.join(" "));
+      },
+    })
+    .on("#menuView", {
+      element(el) {
+        const cls = (el.getAttribute("class") || "").split(/\s+/).filter((c) => c && c !== "active");
+        if (view === "menu") cls.push("active");
+        el.setAttribute("class", cls.join(" "));
+      },
+    });
+
+  if (view === "home") {
+    rewriter = rewriter
+      .on("#heroPreload", { element(el) { el.setAttribute("imagesrcset", swapHero(el.getAttribute("imagesrcset"))); } })
+      .on(".zc-hero source", { element(el) { el.setAttribute("srcset", swapHero(el.getAttribute("srcset"))); } })
+      .on(".zc-hero-img", {
+        element(el) {
+          el.setAttribute("srcset", swapHero(el.getAttribute("srcset")));
+          el.setAttribute("src", swapHero(el.getAttribute("src")));
+          el.setAttribute("data-hero", lang);
+          if (lang === "en") el.setAttribute("alt", "A cafe setting");
+        },
+      });
+  } else {
+    // The hero is hidden on menu pages: do not download it up front.
+    rewriter = rewriter
+      .on("#heroPreload", { element(el) { el.remove(); } })
+      .on(".zc-hero source", { element(el) { el.removeAttribute("srcset"); } })
+      .on(".zc-hero-img", {
+        element(el) {
+          el.removeAttribute("srcset");
+          el.removeAttribute("src");
+          el.removeAttribute("fetchpriority");
+        },
+      });
+  }
+
+  const out = rewriter.transform(asset);
+  const responseHeaders = new Headers(PUBLIC_HTML_HEADERS);
+  return new Response(request.method === "HEAD" ? null : out.body, { status: 200, headers: responseHeaders });
+}
+
+function assetCacheControl(path) {
+  if (path.startsWith("/assets/fonts/")) return "public, max-age=31536000, immutable";
+  if (path.startsWith("/assets/tastes/") || path.startsWith("/assets/hero/")) return "public, max-age=2592000, stale-while-revalidate=86400";
+  if (path.startsWith("/assets/")) return "public, max-age=86400, stale-while-revalidate=86400";
+  return null;
+}
+
+async function servePublicAsset(request, env, path) {
+  const response = await env.ASSETS.fetch(request);
+  const type = response.headers.get("content-type") || "";
+  if (type.startsWith("text/html") && response.status === 200) {
+    // Unknown address: keep the page usable, but tell search engines it does not exist.
+    const headers = new Headers(response.headers);
+    headers.set("x-robots-tag", "noindex");
+    headers.set("cache-control", "no-store");
+    return new Response(response.body, { status: 404, headers });
+  }
+  const cache = (response.status === 200 || response.status === 304) ? assetCacheControl(path) : null;
+  if (!cache) return response;
+  const headers = new Headers(response.headers);
+  headers.set("cache-control", cache);
+  return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
+}
 
 const SESSION_COOKIE = "zaal_admin_session";
 const SESSION_MAX_AGE_SHORT = 60 * 60 * 24 * 7;
@@ -583,6 +746,16 @@ export default {
       }
 
       return withAdminHeaders(await env.ASSETS.fetch(request));
+    }
+
+    if (request.method === "GET" || request.method === "HEAD") {
+      if (ROUTE_REDIRECTS[path]) {
+        return Response.redirect(`${url.origin}${ROUTE_REDIRECTS[path]}${url.search}`, 301);
+      }
+      if (PAGE_ROUTES[path]) {
+        return servePublicPage(request, env, url, PAGE_ROUTES[path]);
+      }
+      return servePublicAsset(request, env, path);
     }
 
     return env.ASSETS.fetch(request);

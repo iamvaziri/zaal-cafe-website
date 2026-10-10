@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">
+  <url>
+    <loc>https://zaalcafe.ir/</loc>
+    <lastmod>2026-10-10</lastmod>
+    <xhtml:link rel="alternate" hreflang="fa" href="https://zaalcafe.ir/"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://zaalcafe.ir/en/"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://zaalcafe.ir/"/>
+  </url>
+  <url>
+    <loc>https://zaalcafe.ir/en/</loc>
+    <lastmod>2026-10-10</lastmod>
+    <xhtml:link rel="alternate" hreflang="fa" href="https://zaalcafe.ir/"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://zaalcafe.ir/en/"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://zaalcafe.ir/"/>
+  </url>
+  <url>
+    <loc>https://zaalcafe.ir/fa/menu/</loc>
+    <lastmod>2026-10-10</lastmod>
+    <xhtml:link rel="alternate" hreflang="fa" href="https://zaalcafe.ir/fa/menu/"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://zaalcafe.ir/en/menu/"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://zaalcafe.ir/fa/menu/"/>
+  </url>
+  <url>
+    <loc>https://zaalcafe.ir/en/menu/</loc>
+    <lastmod>2026-10-10</lastmod>
+    <xhtml:link rel="alternate" hreflang="fa" href="https://zaalcafe.ir/fa/menu/"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://zaalcafe.ir/en/menu/"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://zaalcafe.ir/fa/menu/"/>
+  </url>
+</urlset>
