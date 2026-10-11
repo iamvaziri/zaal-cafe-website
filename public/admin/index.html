@@ -46,6 +46,9 @@
   .hist-row{display:flex;align-items:center;justify-content:space-between;gap:.8rem;flex-wrap:wrap;padding:.6rem .9rem}.hist-info{display:grid;gap:.1rem;min-width:0;flex:1 1 11rem}.hist-row .btn{white-space:normal;flex:none}
   .hist-panel{border-top:1px solid var(--line);padding:.9rem 1rem;background:#fcfbf8}.hist-panel p{margin:0 0 .5rem}.hist-diff{margin:.4rem 0 .8rem;padding:0 1.2rem;display:grid;gap:.3rem}.hist-diff li{overflow-wrap:anywhere}.hist-diff .warn{color:#7a4f00;font-weight:800}.hist-actions{display:flex;gap:.6rem;flex-wrap:wrap}
   @media (max-width:640px){.filter-foot{align-items:stretch}.toast.undo{align-items:stretch}.undo-btn{flex:1}}
+  .img-field{display:grid;grid-template-columns:120px minmax(0,1fr);gap:1rem;align-items:start}.img-preview{width:120px;aspect-ratio:1;border-radius:14px;overflow:hidden;background:#e8e8e8;display:grid;place-items:center;color:#666;font-size:.8rem;text-align:center}.img-preview img{width:100%;height:100%;object-fit:cover}
+  .img-actions{display:flex;gap:.5rem;flex-wrap:wrap;margin:0 0 .5rem}.img-status{margin:.4rem 0 0;min-height:1.4em;font-size:.85rem;font-weight:800;color:#333}.img-status.err{color:var(--danger)}
+  @media (max-width:480px){.img-field{grid-template-columns:96px minmax(0,1fr)}.img-preview{width:96px}}
   </style>
 </head>
 <body>
@@ -142,12 +145,96 @@
       `<div class="field"><label for="f-${lang}s">${fa?'روایت کوتاه فارسی':'English short story'}</label><input id="f-${lang}s" name="${lang}s" value="${esc(i.s||'')}"${dir}><p class="field-hint" data-story-hint="${lang}" hidden></p></div>`+
       `<div class="field full"><label for="f-${lang}d">${fa?'توضیح فارسی':'English description'}</label><textarea id="f-${lang}d" name="${lang}d" rows="4"${dir}>${esc(i.d||'')}</textarea></div>`+
       `<div class="field full"><label for="f-${lang}g">${fa?'مواد / جزئیات فارسی':'English ingredients / details'}</label><textarea id="f-${lang}g" name="${lang}g" rows="3"${dir}>${esc(i.g||'')}</textarea></div></div>`}
+  /* ---- product photo: chosen in the form, shrunk in the browser, uploaded on Save (stored in D1) ---- */
+  const IMG_SIZES=[900,800,700,600,500],IMG_QUALITY={'image/webp':[.82,.72,.62,.5],'image/jpeg':[.85,.75,.65,.55]},IMG_MIN=300,IMG_MAX_BYTES=250*1024,IMG_MAX_INPUT=25*1024*1024;
+  const faNum=n=>Number(n).toLocaleString('fa-IR');
+  function imageField(){
+    const live=location.protocol!=='file:';
+    return `<h3 class="form-sub">عکس محصول</h3><div class="img-field" id="imgField"><div class="img-preview" id="imgPreview"></div><div class="img-body">`+
+      (live?`<div class="img-actions"><button type="button" class="btn" data-img-pick id="imgPick">انتخاب عکس</button><button type="button" class="btn ghost" data-img-alt id="imgAlt" hidden></button><input type="file" id="f-image" accept="image/*" hidden tabindex="-1"></div><p class="muted taste-help">عکس خودکار مربعی و کوچک می‌شود. بعد از زدن «ذخیره»، روی سایت دیده می‌شود.</p><p class="img-status" id="imgStatus" role="status" aria-live="polite"></p>`
+        :`<p class="muted taste-help">بارگذاری عکس فقط در پنل زنده کار می‌کند.</p>`)+`</div></div>`}
+  function setImgStatus(dialog,msg,isErr){const el=dialog.querySelector('#imgStatus');if(!el)return;el.textContent=msg||'';el.classList.toggle('err',!!isErr)}
+  function renderImageField(dialog){
+    const box=dialog.querySelector('#imgPreview');if(!box)return;
+    const p=ui.editing,im=ui.img||{state:'keep'};
+    const src=im.state==='new'?im.url:im.state==='remove'?'':(p.image||'');
+    box.innerHTML=src?`<img src="${esc(src)}" alt="${esc(p.i?.fa?.n||'عکس محصول')}" decoding="async">`:'<span>بدون عکس</span>';
+    const pick=dialog.querySelector('#imgPick'),alt=dialog.querySelector('#imgAlt');if(!pick||!alt)return;
+    pick.textContent=src?'تغییر عکس':'انتخاب عکس';
+    const act=im.state==='new'?['لغو عکس جدید','keep']:im.state==='remove'?['برگرداندن عکس قبلی','keep']:p.image?['حذف عکس','remove']:null;
+    alt.hidden=!act;if(act){alt.textContent=act[0];alt.dataset.imgAlt=act[1]}
+  }
+  function clearImageDraft(){if(ui.img?.url)URL.revokeObjectURL(ui.img.url);ui.img=null}
+  function imageAction(to){
+    const dialog=document.getElementById('editor');
+    if(ui.img?.url)URL.revokeObjectURL(ui.img.url);
+    ui.img={state:to==='remove'?'remove':'keep'};renderImageField(dialog);
+    setImgStatus(dialog,to==='remove'?'عکس بعد از زدن «ذخیره» حذف می‌شود.':'');
+    dialog.querySelector('#imgPick')?.focus({preventScroll:true})
+  }
+  function decodeImage(file){return new Promise((resolve,reject)=>{const url=URL.createObjectURL(file),img=new Image();img.onload=()=>{URL.revokeObjectURL(url);resolve(img)};img.onerror=()=>{URL.revokeObjectURL(url);reject({code:'decode'})};img.src=url})}
+  const canvasToBlob=(canvas,type,q)=>new Promise(res=>{try{canvas.toBlob(res,type,q)}catch(_){res(null)}});
+  async function webpSupported(){const c=document.createElement('canvas');c.width=c.height=2;const b=await canvasToBlob(c,'image/webp',.8);return !!b&&b.type==='image/webp'}
+  async function prepareProductImage(file){
+    if(file.type&&!/^image\/(jpeg|png|webp|gif|avif|heic|heif|bmp)$/i.test(file.type))throw{code:'type'};
+    if(file.size>IMG_MAX_INPUT)throw{code:'big'};
+    const img=await decodeImage(file),w=img.naturalWidth,h=img.naturalHeight,s=Math.min(w,h);
+    if(!s||s<IMG_MIN)throw{code:'small'};
+    const sx=(w-s)/2,sy=(h-s)/2,type=(await webpSupported())?'image/webp':'image/jpeg';
+    for(const size of IMG_SIZES){
+      const t=Math.min(size,s),canvas=document.createElement('canvas');canvas.width=canvas.height=t;
+      const ctx=canvas.getContext('2d');ctx.imageSmoothingQuality='high';
+      if(type==='image/jpeg'){ctx.fillStyle='#fff';ctx.fillRect(0,0,t,t)}
+      ctx.drawImage(img,sx,sy,s,s,0,0,t,t);
+      for(const q of IMG_QUALITY[type]){const blob=await canvasToBlob(canvas,type,q);if(blob&&blob.type===type&&blob.size<=IMG_MAX_BYTES)return{blob,type,size:t}}
+    }
+    throw{code:'toolarge'}
+  }
+  function imageProblem(e){
+    switch(e&&e.code){
+      case 'type':return 'این فایل عکس نیست. یک عکس JPG، PNG یا WebP انتخاب کن.';
+      case 'big':return 'فایل خیلی بزرگ است (بیشتر از ۲۵ مگابایت). عکس کوچک‌تری انتخاب کن.';
+      case 'decode':return 'این عکس باز نشد. عکس دیگری (JPG یا PNG) امتحان کن.';
+      case 'small':return `عکس خیلی کوچک است. حداقل ${faNum(IMG_MIN)}×${faNum(IMG_MIN)} پیکسل لازم است.`;
+      case 'toolarge':return 'عکس بعد از کوچک‌کردن هنوز سنگین است. عکس ساده‌تری امتحان کن.';
+      default:return 'عکس آماده نشد؛ دوباره امتحان کن.'
+    }
+  }
+  async function onImagePicked(input){
+    const dialog=document.getElementById('editor'),file=input.files&&input.files[0];input.value='';if(!file)return;
+    const pick=dialog.querySelector('#imgPick');if(pick)pick.disabled=true;setImgStatus(dialog,'در حال آماده‌سازی عکس…');
+    try{
+      const out=await prepareProductImage(file);
+      if(ui.img?.url)URL.revokeObjectURL(ui.img.url);
+      ui.img={state:'new',blob:out.blob,type:out.type,url:URL.createObjectURL(out.blob)};
+      renderImageField(dialog);setImgStatus(dialog,`عکس آماده شد (${faNum(Math.round(out.blob.size/1024))} کیلوبایت). برای ماندن روی سایت «ذخیره» را بزن.`)
+    }catch(e){if(!(e&&e.code))console.error('image_prepare_failed',e);setImgStatus(dialog,imageProblem(e),true)}
+    finally{if(pick)pick.disabled=false}
+  }
+  function uploadProblem(code){
+    switch(code){
+      case 'IMAGE_STORAGE_NOT_READY':return 'بخش عکس روی سرور هنوز فعال نشده است. چیزی ذخیره نشد.';
+      case 'IMAGE_LIMIT_REACHED':return 'تعداد عکس‌های بارگذاری‌شده به سقف رسیده است. چیزی ذخیره نشد.';
+      case 'IMAGE_TOO_LARGE':return 'عکس بعد از کوچک‌کردن هنوز از حد مجاز بزرگ‌تر است. چیزی ذخیره نشد.';
+      default:return 'بارگذاری عکس انجام نشد؛ دوباره تلاش کن. چیزی ذخیره نشد.'
+    }
+  }
+  async function uploadProductImage(dialog,im){
+    try{
+      const r=await fetch('/admin/api/product-images',{method:'POST',credentials:'same-origin',headers:{accept:'application/json','content-type':im.type},body:im.blob});
+      const d=await r.json().catch(()=>null);
+      if(r.status===401||r.status===403){toast('نشست مدیریت منقضی شده؛ صفحه دوباره باز می‌شود.');setTimeout(()=>location.reload(),700);return null}
+      if(r.ok&&d?.ok&&/^\/assets\/products\/up-[a-z0-9-]+\.(webp|jpg)$/.test(d.image||''))return d.image;
+      showFormMsg(dialog,uploadProblem(d?.error?.code))
+    }catch(e){console.error('image_upload_failed',e);showFormMsg(dialog,'بارگذاری عکس انجام نشد؛ اینترنت را بررسی کن و دوباره تلاش کن. چیزی ذخیره نشد.')}
+    return null
+  }
   function openEditor(id){
     if(!catalog.categories.length){toast('اول حداقل یک دسته بساز.');return}
-    ui.editing=clone(id?catalog.products.find(p=>p.id===id):blankProduct());
+    ui.editing=clone(id?catalog.products.find(p=>p.id===id):blankProduct());clearImageDraft();ui.img={state:'keep'};
     const p=ui.editing;const dialog=document.getElementById('editor');
-    dialog.innerHTML=`<div class="sheet-head"><h2>${id?`ویرایش ${esc(p.i.fa.n||p.id)}`:'محصول جدید'}</h2><button class="close" type="button" aria-label="بستن" data-close="editor">×</button></div><form class="sheet-body" id="productForm" novalidate><div class="tabs" role="tablist" aria-label="زبان محتوا"><button type="button" class="active" role="tab" id="tab-fa" aria-controls="panel-fa" aria-selected="true" data-lang-tab="fa">فارسی <span class="tab-flag" data-tab-flag="fa"></span></button><button type="button" role="tab" id="tab-en" aria-controls="panel-en" aria-selected="false" tabindex="-1" data-lang-tab="en">English <span class="tab-flag" data-tab-flag="en"></span></button></div>${langPanel('fa',p)}${langPanel('en',p)}<h3 class="form-sub">تنظیمات محصول</h3><div class="grid"><div class="field"><label for="f-category">دسته</label><select id="f-category" name="category">${sortedCategories().map(c=>`<option value="${esc(c.id)}" ${p.categoryId===c.id?'selected':''}>${esc(c.fa)}</option>`).join('')}</select></div><div class="field"><label for="f-status">وضعیت</label><select id="f-status" name="status"><option value="available" ${p.status==='available'?'selected':''}>موجود</option><option value="sold_out" ${p.status==='sold_out'?'selected':''}>ناموجود</option><option value="hidden" ${p.status==='hidden'?'selected':''}>پنهان</option></select></div><div class="field"><label for="f-price">قیمت (تومان)</label><input id="f-price" name="price" value="${Number(p.price)||0}" inputmode="numeric" dir="ltr"></div><div class="field"><label for="f-sort">ترتیب نمایش</label><input id="f-sort" name="sortOrder" value="${Number(p.sortOrder)||0}" inputmode="numeric" dir="ltr"></div><div class="field full"><label>مزه‌ها <span class="muted" id="tasteCount"></span></label><p class="muted taste-help">حداقل ۱ و حداکثر ۴ مزه انتخاب کن (محصول پنهان می‌تواند بدون مزه باشد). روی هر مزه بزنی یا نگه داری، توضیحش پایین نشان داده می‌شود.</p><div class="checks">${(catalog.taste||[]).map(item=>`<label title="${esc(tasteDesc(item[0]))}"><input type="checkbox" name="taste" value="${item[0]}" ${p.tasteTags?.includes(item[0])?'checked':''}> ${esc(tasteLabel(item))}</label>`).join('')||'<span class="muted">تعریف نشده</span>'}</div><p class="muted taste-hint" id="tasteHint"></p></div><div class="field full"><label>آلرژن‌ها</label><div class="checks">${ALLERGEN_OPTIONS.map(([v,l])=>`<label><input type="checkbox" name="allergen" value="${v}" ${(p.allergens||[]).includes(v)?'checked':''}> ${esc(l)}</label>`).join('')}</div><p class="muted taste-help">فقط موارد قطعی را علامت بزن. این اطلاعات زیر محصول در سایت نمایش داده می‌شود.</p></div><div class="field full"><label>رژیم غذایی</label><div class="checks">${DIETARY_OPTIONS.map(([v,l])=>`<label><input type="checkbox" name="dietary" value="${v}" ${(p.dietary||[]).includes(v)?'checked':''}> ${esc(l)}</label>`).join('')}</div></div></div></form><div class="sheet-foot"><div class="form-msg" role="alert" hidden></div><button class="btn" data-close="editor" type="button">انصراف</button><button class="btn orange" type="submit" form="productForm">ذخیره</button></div>`;
-    syncTasteBoxes(dialog);refreshLangWarnings(dialog.querySelector('#productForm'));dialog.showModal()
+    dialog.innerHTML=`<div class="sheet-head"><h2>${id?`ویرایش ${esc(p.i.fa.n||p.id)}`:'محصول جدید'}</h2><button class="close" type="button" aria-label="بستن" data-close="editor">×</button></div><form class="sheet-body" id="productForm" novalidate><div class="tabs" role="tablist" aria-label="زبان محتوا"><button type="button" class="active" role="tab" id="tab-fa" aria-controls="panel-fa" aria-selected="true" data-lang-tab="fa">فارسی <span class="tab-flag" data-tab-flag="fa"></span></button><button type="button" role="tab" id="tab-en" aria-controls="panel-en" aria-selected="false" tabindex="-1" data-lang-tab="en">English <span class="tab-flag" data-tab-flag="en"></span></button></div>${langPanel('fa',p)}${langPanel('en',p)}${imageField()}<h3 class="form-sub">تنظیمات محصول</h3><div class="grid"><div class="field"><label for="f-category">دسته</label><select id="f-category" name="category">${sortedCategories().map(c=>`<option value="${esc(c.id)}" ${p.categoryId===c.id?'selected':''}>${esc(c.fa)}</option>`).join('')}</select></div><div class="field"><label for="f-status">وضعیت</label><select id="f-status" name="status"><option value="available" ${p.status==='available'?'selected':''}>موجود</option><option value="sold_out" ${p.status==='sold_out'?'selected':''}>ناموجود</option><option value="hidden" ${p.status==='hidden'?'selected':''}>پنهان</option></select></div><div class="field"><label for="f-price">قیمت (تومان)</label><input id="f-price" name="price" value="${Number(p.price)||0}" inputmode="numeric" dir="ltr"></div><div class="field"><label for="f-sort">ترتیب نمایش</label><input id="f-sort" name="sortOrder" value="${Number(p.sortOrder)||0}" inputmode="numeric" dir="ltr"></div><div class="field full"><label>مزه‌ها <span class="muted" id="tasteCount"></span></label><p class="muted taste-help">حداقل ۱ و حداکثر ۴ مزه انتخاب کن (محصول پنهان می‌تواند بدون مزه باشد). روی هر مزه بزنی یا نگه داری، توضیحش پایین نشان داده می‌شود.</p><div class="checks">${(catalog.taste||[]).map(item=>`<label title="${esc(tasteDesc(item[0]))}"><input type="checkbox" name="taste" value="${item[0]}" ${p.tasteTags?.includes(item[0])?'checked':''}> ${esc(tasteLabel(item))}</label>`).join('')||'<span class="muted">تعریف نشده</span>'}</div><p class="muted taste-hint" id="tasteHint"></p></div><div class="field full"><label>آلرژن‌ها</label><div class="checks">${ALLERGEN_OPTIONS.map(([v,l])=>`<label><input type="checkbox" name="allergen" value="${v}" ${(p.allergens||[]).includes(v)?'checked':''}> ${esc(l)}</label>`).join('')}</div><p class="muted taste-help">فقط موارد قطعی را علامت بزن. این اطلاعات زیر محصول در سایت نمایش داده می‌شود.</p></div><div class="field full"><label>رژیم غذایی</label><div class="checks">${DIETARY_OPTIONS.map(([v,l])=>`<label><input type="checkbox" name="dietary" value="${v}" ${(p.dietary||[]).includes(v)?'checked':''}> ${esc(l)}</label>`).join('')}</div></div></div></form><div class="sheet-foot"><div class="form-msg" role="alert" hidden></div><button class="btn" data-close="editor" type="button">انصراف</button><button class="btn orange" type="submit" form="productForm">ذخیره</button></div>`;
+    syncTasteBoxes(dialog);refreshLangWarnings(dialog.querySelector('#productForm'));renderImageField(dialog);dialog.showModal()
   }
   function catRow(c,i,n){
     const id=esc(c.id),name=esc(c.fa),count=catalog.products.filter(p=>p.categoryId===c.id).length;
@@ -168,6 +255,8 @@
     if(target.dataset.undo!==undefined){await undoLast(event.detail===0);return}
     if(target.dataset.reload!==undefined){location.reload();return}
     if(target.dataset.langTab){setEditorLang(target.closest('dialog'),target.dataset.langTab,false);return}
+    if(target.dataset.imgPick!==undefined){document.getElementById('f-image')?.click();return}
+    if(target.dataset.imgAlt!==undefined){imageAction(target.dataset.imgAlt);return}
     if(target.dataset.adminCat){ui.adminCategory=target.dataset.adminCat;applyFilters();return}
     if(target.dataset.adminStatus){ui.status=target.dataset.adminStatus;applyFilters();return}
     if(target.dataset.adminIncomplete!==undefined){ui.incomplete=!ui.incomplete;applyFilters();return}
@@ -233,9 +322,22 @@
     p.dietary=[...form.querySelectorAll('input[name="dietary"]:checked')].map(i=>i.value).concat((p.dietary||[]).filter(x=>!DIETARY_OPTIONS.some(o=>o[0]===x)));
     if(p.status!=='hidden'&&(p.tasteTags.length<1||p.tasteTags.length>MAX_TASTES)){showFormMsg(dialog,'برای محصول فعال، ۱ تا ۴ مزه انتخاب کن.');form.querySelector('input[name="taste"]')?.focus();return}
     p.aliases=[...new Set([...(p.aliases||[]),p.i.fa.n,p.i.en.n].filter(Boolean))];
+    const im=ui.img;
+    if(im?.state==='new'){
+      if(!im.uploaded){
+        const submit=dialog.querySelector('button[type="submit"]');if(submit)submit.disabled=true;setImgStatus(dialog,'در حال بارگذاری عکس…');
+        let path=null;try{path=await uploadProductImage(dialog,im)}finally{if(submit)submit.disabled=false}
+        if(!dialog.open)return;
+        if(!path){setImgStatus(dialog,'');return}
+        im.uploaded=path
+      }
+      p.image=im.uploaded
+    }else if(im?.state==='remove')p.image=null;
     const index=catalog.products.findIndex(item=>item.id===p.id);if(index>=0)catalog.products[index]=p;else catalog.products.push(p);
     if(await saveCatalog('محصول ذخیره شد.')){dialog.close();render()}else catalog=previous
   })
+  document.addEventListener('change',event=>{if(event.target.id==='f-image')onImagePicked(event.target)});
+  document.getElementById('editor').addEventListener('close',clearImageDraft);
   /* ---- list search & filters (view only; never writes) ---- */
   const STATUS_FILTERS=[['all','همه'],['available','موجود'],['sold_out','ناموجود'],['hidden','پنهان']];
   const STORY_PLACEHOLDERS={fa:'اطلاعات تکمیلی این محصول به\u200cزودی اضافه می\u200cشود.',en:'More product details will be added soon.'};

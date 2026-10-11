@@ -316,7 +316,7 @@ function validateCatalog(catalog) {
       product.image !== null &&
       product.image !== undefined &&
       (!validString(product.image, 500) ||
-        !/^\/assets\/products\/[a-z0-9-]+\.webp$/.test(product.image))
+        !/^\/assets\/products\/[a-z0-9-]+\.(webp|jpg)$/.test(product.image))
     ) {
       return `Product ${product.id} has an invalid image path.`;
     }
@@ -815,6 +815,139 @@ async function restoreCatalog(request, env) {
   }
 }
 
+// ---- Product photos uploaded from the admin (stored in D1, table product_images) ----
+// Uploaded photos always get a generated name starting with "up-", so they can never
+// shadow the static files in /assets/products/ and every upload has its own cache key.
+const PRODUCT_IMAGE_MAX_BYTES = 400 * 1024;
+const PRODUCT_IMAGE_MAX_COUNT = 500;
+const PRODUCT_IMAGE_PATH = /^\/assets\/products\/(up-[a-z0-9-]{8,70})\.(webp|jpg)$/;
+// Uploaded photos have no AVIF variants. The public page asks for them first and then falls back,
+// so answer with a tiny 404 instead of sending the whole site page as the body of the 404.
+const UPLOADED_AVIF_VARIANT = /^\/assets\/products\/up-[a-z0-9-]+-(?:240|480|900)\.avif$/;
+
+function sniffImage(bytes) {
+  const ascii = (from, to) => String.fromCharCode(...bytes.subarray(from, to));
+  if (bytes.length >= 16 && ascii(0, 4) === "RIFF" && ascii(8, 12) === "WEBP") {
+    const declared = bytes[4] + bytes[5] * 256 + bytes[6] * 65536 + bytes[7] * 16777216 + 8;
+    if (declared === bytes.length) return { type: "image/webp", ext: "webp" };
+  }
+  if (
+    bytes.length >= 4 &&
+    bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff &&
+    bytes[bytes.length - 2] === 0xff && bytes[bytes.length - 1] === 0xd9
+  ) {
+    return { type: "image/jpeg", ext: "jpg" };
+  }
+  return null;
+}
+
+function bytesToBase64(bytes) {
+  let binary = "";
+  for (let i = 0; i < bytes.length; i += 0x8000) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+  }
+  return btoa(binary);
+}
+
+function base64ToBytes(value) {
+  const binary = atob(value);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
+  return bytes;
+}
+
+function newProductImageName() {
+  const stamp = new Date().toISOString().replace(/[-:T]/g, "").slice(0, 14);
+  const random = [...crypto.getRandomValues(new Uint8Array(4))]
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+  return `up-${stamp}-${random}`;
+}
+
+async function uploadProductImage(request, env) {
+  if (!sameOrigin(request)) {
+    return errorResponse("Cross-origin request rejected.", 403, "FORBIDDEN_ORIGIN");
+  }
+  const declared = (request.headers.get("content-type") || "").split(";")[0].trim().toLowerCase();
+  if (declared !== "image/webp" && declared !== "image/jpeg") {
+    return errorResponse("Only WebP or JPEG images are accepted.", 415, "UNSUPPORTED_IMAGE_TYPE");
+  }
+  const announced = Number(request.headers.get("content-length"));
+  if (Number.isFinite(announced) && announced > PRODUCT_IMAGE_MAX_BYTES) {
+    return errorResponse("The image is larger than 400 KB.", 413, "IMAGE_TOO_LARGE");
+  }
+  const bytes = new Uint8Array(await request.arrayBuffer());
+  if (bytes.length === 0) return errorResponse("The image is empty.", 400, "EMPTY_IMAGE");
+  if (bytes.length > PRODUCT_IMAGE_MAX_BYTES) {
+    return errorResponse("The image is larger than 400 KB.", 413, "IMAGE_TOO_LARGE");
+  }
+  const kind = sniffImage(bytes);
+  if (!kind || kind.type !== declared) {
+    return errorResponse("The file is not a complete WebP or JPEG image.", 415, "INVALID_IMAGE");
+  }
+
+  try {
+    const total = await env.DB.prepare("SELECT COUNT(*) AS n FROM product_images").first();
+    if (Number(total?.n) >= PRODUCT_IMAGE_MAX_COUNT) {
+      return errorResponse("Too many uploaded product images.", 422, "IMAGE_LIMIT_REACHED");
+    }
+    const name = newProductImageName();
+    await env.DB.prepare(
+      "INSERT INTO product_images (name, content_type, size, data_base64, created_at) VALUES (?1, ?2, ?3, ?4, ?5)",
+    )
+      .bind(name, kind.type, bytes.length, bytesToBase64(bytes), new Date().toISOString())
+      .run();
+    return json(
+      { ok: true, image: `/assets/products/${name}.${kind.ext}`, size: bytes.length, contentType: kind.type },
+      201,
+      { "cache-control": "no-store" },
+    );
+  } catch (error) {
+    console.error("product_image_upload_failed", error);
+    if (String(error?.message || error).includes("no such table")) {
+      return errorResponse("Image storage is not set up yet.", 503, "IMAGE_STORAGE_NOT_READY");
+    }
+    return errorResponse("The image could not be stored.", 500, "IMAGE_STORE_FAILED");
+  }
+}
+
+function imageNotFound() {
+  return new Response("Not found", {
+    status: 404,
+    headers: {
+      "content-type": "text/plain; charset=utf-8",
+      "cache-control": "no-store",
+      "x-robots-tag": "noindex",
+    },
+  });
+}
+
+async function servePublicProductImage(request, env, name, ext) {
+  let row = null;
+  try {
+    row = await env.DB.prepare("SELECT content_type, size, data_base64 FROM product_images WHERE name = ?1")
+      .bind(name)
+      .first();
+  } catch (error) {
+    console.error("product_image_read_failed", error);
+  }
+  const wanted = ext === "webp" ? "image/webp" : "image/jpeg";
+  if (!row || row.content_type !== wanted) return imageNotFound();
+  const etag = `"${name}"`;
+  const headers = {
+    "content-type": row.content_type,
+    "cache-control": "public, max-age=31536000, immutable",
+    "x-content-type-options": "nosniff",
+    etag,
+  };
+  if (request.headers.get("if-none-match") === etag) {
+    return new Response(null, { status: 304, headers });
+  }
+  const body = base64ToBytes(row.data_base64);
+  headers["content-length"] = String(body.length);
+  return new Response(request.method === "HEAD" ? null : body, { status: 200, headers });
+}
+
 async function health(env) {
   try {
     const row = await env.DB.prepare(
@@ -924,7 +1057,7 @@ export default {
       }
       const authenticated = await isAuthenticated(request, env);
       if (!authenticated) {
-        if (path === "/admin/api/catalog" || path.startsWith("/admin/api/catalog/")) {
+        if (path.startsWith("/admin/api/")) {
           return errorResponse("Authentication required.", 401, "UNAUTHORIZED");
         }
         const nextPath = normalizeNextPath(`${path}${url.search}`);
@@ -947,10 +1080,23 @@ export default {
         return errorResponse("Method not allowed.", 405, "METHOD_NOT_ALLOWED");
       }
 
+      if (path === "/admin/api/product-images") {
+        if (request.method === "POST") return uploadProductImage(request, env);
+        return errorResponse("Method not allowed.", 405, "METHOD_NOT_ALLOWED");
+      }
+
       return withAdminHeaders(await env.ASSETS.fetch(request));
     }
 
     if (request.method === "GET" || request.method === "HEAD") {
+      const productImage = PRODUCT_IMAGE_PATH.exec(path);
+      if (productImage) return servePublicProductImage(request, env, productImage[1], productImage[2]);
+      if (UPLOADED_AVIF_VARIANT.test(path)) {
+        return new Response(request.method === "HEAD" ? null : "Not found", {
+          status: 404,
+          headers: { "content-type": "text/plain; charset=utf-8", "cache-control": "public, max-age=86400" },
+        });
+      }
       if (ROUTE_REDIRECTS[path]) {
         return Response.redirect(`${url.origin}${ROUTE_REDIRECTS[path]}${url.search}`, 301);
       }
