@@ -116,6 +116,10 @@ window.clarity=window.clarity||function(){(window.clarity.q=window.clarity.q||[]
 .menu-tools.zb-compact:has(:focus-visible){transform:none}
 .menu-tools.zb-compact:has(:focus-visible) .zc-search{visibility:visible;transition:none}
 @media (prefers-reduced-motion:reduce){.menu-tools{transition:none}}
+.menu-intro .zb-status-row{display:flex;flex-wrap:wrap;align-items:center;gap:.6rem;margin:.9rem 0 0}
+.menu-intro .zb-status-row .zb-open{margin:0}
+.zb-menu-dir{display:none}
+@media (min-width:45rem){.zb-menu-dir{display:inline-flex;align-items:center;gap:.45rem;min-height:2.75rem;padding:.45rem 1rem;border:1px solid var(--color-line);border-radius:1.4rem;background:#fff;color:var(--color-ink);font-size:.875rem;font-weight:800;line-height:1.5;text-decoration:none}.zb-menu-dir:hover{border-color:var(--color-sage)}.zb-menu-dir:focus-visible{outline:2px solid var(--color-sage-deep);outline-offset:2px}}
 </style>
 </head>
 <body class="bg-base-100 text-base-content font-sans">
@@ -232,7 +236,7 @@ window.clarity=window.clarity||function(){(window.clarity.q=window.clarity.q||[]
 
     <section class="view menu-view" id="menuView" aria-label="منوی دیجیتال" data-aria="digitalMenu">
       <div class="wrap menu-intro">
-        <div><span class="eyebrow" data-t="digitalMenu">منوی دیجیتال</span><h1 class="zc-display zc-display-menu" data-t="menuTitle">منوی زال</h1><p class="text-muted m-0" data-t="menuLead">با اسم، مزه یا ذائقه جست‌وجو کنید.</p><p class="zb-open" data-open-now></p></div>
+        <div><span class="eyebrow" data-t="digitalMenu">منوی دیجیتال</span><h1 class="zc-display zc-display-menu" data-t="menuTitle">منوی زال</h1><p class="text-muted m-0" data-t="menuLead">با اسم، مزه یا ذائقه جست‌وجو کنید.</p><div class="zb-status-row"><p class="zb-open" data-open-now></p><a class="zb-menu-dir" href="https://maps.app.goo.gl/R6Qwbg6jbuM7mpsg6" target="_blank" rel="noopener"><svg class="zb-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 11 19-9-9 19-2-8-8-2Z"/></svg><span data-t="dirButton">مسیریابی</span></a></div></div>
         <span class="menu-count hidden md:block" id="menuCount"></span>
       </div>
       <div class="menu-tools">
