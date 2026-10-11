@@ -623,6 +623,194 @@ async function putCatalog(request, env) {
   }
 }
 
+const HISTORY_LIST_LIMIT = 20;
+
+function parseRevision(value) {
+  const number =
+    typeof value === "string"
+      ? /^[0-9]{1,9}$/.test(value) ? Number(value) : NaN
+      : value;
+  return Number.isInteger(number) && number >= 1 && number <= 999999999
+    ? number
+    : null;
+}
+
+function revisionConflictResponse(current) {
+  return json(
+    {
+      ok: false,
+      error: {
+        code: "REVISION_CONFLICT",
+        message: "The catalog changed in another session. Reload and try again.",
+      },
+      revision: Number(current?.revision || 0),
+      updatedAt: current?.updated_at || null,
+    },
+    409,
+  );
+}
+
+async function getCatalogHistory(env, url) {
+  try {
+    const requested = url.searchParams.get("revision");
+    if (requested !== null) {
+      const revision = parseRevision(requested);
+      if (revision === null) {
+        return errorResponse("Revision is invalid.", 400, "BAD_REVISION");
+      }
+      let row = await env.DB.prepare(
+        "SELECT data, saved_at FROM catalog_history WHERE revision = ?",
+      )
+        .bind(revision)
+        .first();
+      if (!row) {
+        row = await env.DB.prepare(
+          "SELECT data, updated_at AS saved_at FROM catalog WHERE id = 1 AND revision = ?",
+        )
+          .bind(revision)
+          .first();
+      }
+      if (!row) {
+        return errorResponse("This version was not found.", 404, "VERSION_NOT_FOUND");
+      }
+      return json({
+        ok: true,
+        revision,
+        savedAt: row.saved_at,
+        catalog: JSON.parse(row.data),
+      });
+    }
+
+    const current = await env.DB.prepare(
+      `SELECT revision, updated_at,
+         CASE WHEN json_valid(data) THEN CASE WHEN json_type(data, '$.products') = 'array' THEN json_array_length(data, '$.products') ELSE 0 END ELSE 0 END AS products
+       FROM catalog WHERE id = 1`,
+    ).first();
+    if (!current) throw new Error("Catalog database has not been initialized.");
+    const rows = await env.DB.prepare(
+      `SELECT revision, saved_at,
+         CASE WHEN json_valid(data) THEN CASE WHEN json_type(data, '$.products') = 'array' THEN json_array_length(data, '$.products') ELSE 0 END ELSE 0 END AS products
+       FROM catalog_history ORDER BY revision DESC LIMIT ?`,
+    )
+      .bind(HISTORY_LIST_LIMIT)
+      .all();
+    return json({
+      ok: true,
+      limit: HISTORY_LIST_LIMIT,
+      current: {
+        revision: Number(current.revision),
+        updatedAt: current.updated_at,
+        products: Number(current.products || 0),
+      },
+      items: (rows?.results || []).map((row) => ({
+        revision: Number(row.revision),
+        savedAt: row.saved_at,
+        products: Number(row.products || 0),
+      })),
+    });
+  } catch (error) {
+    console.error("catalog_history_failed", error);
+    return errorResponse(
+      "Catalog history is temporarily unavailable.",
+      503,
+      "HISTORY_UNAVAILABLE",
+    );
+  }
+}
+
+async function restoreCatalog(request, env) {
+  if (!sameOrigin(request)) {
+    return errorResponse(
+      "Cross-origin writes are not allowed.",
+      403,
+      "BAD_ORIGIN",
+    );
+  }
+  if (
+    !request.headers.get("content-type")?.toLowerCase().startsWith(
+      "application/json",
+    )
+  ) {
+    return errorResponse("Expected application/json.", 415, "BAD_CONTENT_TYPE");
+  }
+
+  const bodyText = await request.text();
+  if (new TextEncoder().encode(bodyText).byteLength > 4000) {
+    return errorResponse("Request body is too large.", 413, "BODY_TOO_LARGE");
+  }
+
+  let body;
+  try {
+    body = JSON.parse(bodyText);
+  } catch {
+    return errorResponse("Request body is not valid JSON.", 400, "BAD_JSON");
+  }
+
+  const target = isPlainObject(body) ? parseRevision(body.revision) : null;
+  const expectedRevision = isPlainObject(body)
+    ? parseRevision(body.expectedRevision)
+    : null;
+  if (target === null || expectedRevision === null) {
+    return errorResponse(
+      "Both revision and expectedRevision are required.",
+      400,
+      "BAD_REVISION",
+    );
+  }
+
+  try {
+    const row = await env.DB.prepare(
+      "SELECT data FROM catalog_history WHERE revision = ?",
+    )
+      .bind(target)
+      .first();
+    if (!row) {
+      return errorResponse("This version was not found.", 404, "VERSION_NOT_FOUND");
+    }
+
+    let restored;
+    try {
+      restored = JSON.parse(row.data);
+    } catch {
+      restored = null;
+    }
+    const validationError = validateCatalog(restored);
+    if (validationError) {
+      return errorResponse(validationError, 400, "INVALID_CATALOG");
+    }
+
+    const updatedAt = new Date().toISOString();
+    const result = await env.DB.prepare(
+      `UPDATE catalog
+       SET data = ?, revision = revision + 1, updated_at = ?
+       WHERE id = 1 AND revision = ?`,
+    )
+      .bind(JSON.stringify(restored), updatedAt, expectedRevision)
+      .run();
+
+    if (Number(result?.meta?.changes || 0) !== 1) {
+      const current = await env.DB.prepare(
+        "SELECT revision, updated_at FROM catalog WHERE id = 1",
+      ).first();
+      return revisionConflictResponse(current);
+    }
+
+    return json({
+      ok: true,
+      revision: expectedRevision + 1,
+      updatedAt,
+      restoredFrom: target,
+    });
+  } catch (error) {
+    console.error("catalog_restore_failed", error);
+    return errorResponse(
+      "Catalog could not be restored.",
+      503,
+      "CATALOG_WRITE_FAILED",
+    );
+  }
+}
+
 async function health(env) {
   try {
     const row = await env.DB.prepare(
@@ -732,7 +920,7 @@ export default {
       }
       const authenticated = await isAuthenticated(request, env);
       if (!authenticated) {
-        if (path === "/admin/api/catalog") {
+        if (path === "/admin/api/catalog" || path.startsWith("/admin/api/catalog/")) {
           return errorResponse("Authentication required.", 401, "UNAUTHORIZED");
         }
         const nextPath = normalizeNextPath(`${path}${url.search}`);
@@ -742,6 +930,16 @@ export default {
       if (path === "/admin/api/catalog") {
         if (request.method === "GET") return getCatalog(env);
         if (request.method === "PUT") return putCatalog(request, env);
+        return errorResponse("Method not allowed.", 405, "METHOD_NOT_ALLOWED");
+      }
+
+      if (path === "/admin/api/catalog/history") {
+        if (request.method === "GET") return getCatalogHistory(env, url);
+        return errorResponse("Method not allowed.", 405, "METHOD_NOT_ALLOWED");
+      }
+
+      if (path === "/admin/api/catalog/restore") {
+        if (request.method === "POST") return restoreCatalog(request, env);
         return errorResponse("Method not allowed.", 405, "METHOD_NOT_ALLOWED");
       }
 

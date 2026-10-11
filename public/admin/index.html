@@ -41,6 +41,10 @@
   .tabs{display:flex;gap:.4rem;margin:0 0 1rem;border-bottom:1px solid var(--line)}.tabs button{min-height:44px;border:0;border-bottom:3px solid transparent;background:transparent;padding:.4rem .95rem;font-weight:800;color:#555}.tabs button[aria-selected=true]{color:#111;border-bottom-color:var(--o)}.tab-flag{font-size:.74rem;font-weight:700;color:#7a4f00}.tab-flag:not(:empty)::before{content:'· '}
   .field-hint{margin:0;font-size:.8rem;color:#7a4f00}.form-sub{margin:1.6rem 0 .8rem;font-size:1rem}.form-msg{flex:1 1 100%;order:-1;background:var(--dangerBg);color:var(--danger);border:1px solid #d9b0a7;border-radius:12px;padding:.6rem .85rem;font-weight:700}
   .cat-item{border-top:1px solid var(--line);padding:.2rem 0 .9rem}.cat-item:first-of-type{border-top:0}.cat-actions{display:flex;gap:.4rem;align-items:center}.btn.icon{min-width:44px;padding:.4rem}.btn:disabled{opacity:.4;cursor:default}.cat-meta{margin:.5rem 0 0;font-size:.82rem}.cat-meta code{background:#f0f0ec;padding:.05rem .4rem;border-radius:6px}
+  .hist-note{margin:0 0 1rem}.hist-banner{margin:0 0 1rem;padding:.8rem 1rem;border:1px solid #ecd49a;background:#fff3d6;color:#7a4f00;border-radius:14px;font-weight:700;display:flex;gap:.8rem;align-items:center;flex-wrap:wrap}.hist-banner span{flex:1 1 14rem}
+  .hist-current{padding:.8rem 1rem;border:1px solid var(--line);border-radius:14px;background:#faf8f4;margin:0 0 1rem}.hist-list{list-style:none;margin:0;padding:0;display:grid;gap:.6rem}.hist-item{border:1px solid var(--line);border-radius:14px;overflow:hidden;background:#fff}
+  .hist-row{display:flex;align-items:center;justify-content:space-between;gap:.8rem;flex-wrap:wrap;padding:.6rem .9rem}.hist-info{display:grid;gap:.1rem;min-width:0;flex:1 1 11rem}.hist-row .btn{white-space:normal;flex:none}
+  .hist-panel{border-top:1px solid var(--line);padding:.9rem 1rem;background:#fcfbf8}.hist-panel p{margin:0 0 .5rem}.hist-diff{margin:.4rem 0 .8rem;padding:0 1.2rem;display:grid;gap:.3rem}.hist-diff li{overflow-wrap:anywhere}.hist-diff .warn{color:#7a4f00;font-weight:800}.hist-actions{display:flex;gap:.6rem;flex-wrap:wrap}
   @media (max-width:640px){.filter-foot{align-items:stretch}.toast.undo{align-items:stretch}.undo-btn{flex:1}}
   </style>
 </head>
@@ -59,6 +63,7 @@
   <dialog class="sheet" id="editor"></dialog>
   <dialog class="sheet" id="categoryEditor"></dialog>
   <dialog class="sheet" id="tasteEditor"></dialog>
+  <dialog class="sheet" id="historyEditor"></dialog>
   <dialog class="sheet" id="confirm"></dialog>
   <script>
   const ADMIN_CACHE_KEY='zaal-admin-catalog-cache-v2';
@@ -125,7 +130,7 @@
     document.title='زال کافه | پنل ادمین';
     if(ui.adminCategory!=='all'&&!cat(ui.adminCategory))ui.adminCategory='all';
     const available=catalog.products.filter(p=>p.status==='available').length;const soldOut=catalog.products.filter(p=>p.status==='sold_out').length;const hidden=catalog.products.filter(p=>p.status==='hidden').length;
-    app.innerHTML=`<section class="hero"><div><h1>مدیریت منو</h1><p>نسخهٔ سبک و مستقیم برای مدیریت منوی زال کافه.</p></div><div class="actions"><button class="btn" data-action="tastes">مزه‌ها</button><button class="btn" data-action="categories">مدیریت دسته‌ها</button><button class="btn orange" data-action="add-product">افزودن محصول</button></div></section><div class="notice">${catalogSource==='api'?`متصل به پایگاه داده D1 · نسخهٔ ${digits(catalogRevision)}${catalogUpdatedAt?` · آخرین ذخیره: ${esc(new Date(catalogUpdatedAt).toLocaleString('fa-IR'))}`:''}`:catalogSource==='cache'?'نمایش از کش محلی؛ در اولین فرصت اتصال سرور را بررسی کن.':'اتصال زنده در دسترس نیست؛ فعلاً نسخهٔ محلی نمایش داده می‌شود.'}</div><div class="stats"><div class="stat"><b>${digits(catalog.products.length)}</b><span>همه</span></div><div class="stat"><b>${digits(available)}</b><span>موجود</span></div><div class="stat"><b>${digits(soldOut)}</b><span>ناموجود</span></div><div class="stat"><b>${digits(hidden)}</b><span>پنهان</span></div></div><div class="toolbar"><div class="helper">برای حذف از منوی عمومی بهتر است وضعیت «پنهان» را انتخاب کنی. دکمهٔ حذف، محصول را واقعاً از کاتالوگ پاک می‌کند.</div><div class="filters" role="search"><div class="field"><label for="adminSearch">جست‌وجو در محصولات</label><input id="adminSearch" type="search" dir="auto" value="${esc(ui.q)}" placeholder="نام فارسی یا English، دسته، شناسه…" autocomplete="off" enterkeyhint="search" spellcheck="false"></div><div class="chips" role="group" aria-label="فیلتر وضعیت و محتوا">${statusChips()}</div>${adminCategoryBar()}<div class="filter-foot"><span id="resultCount" role="status"></span><button type="button" class="btn ghost" id="clearFilters" data-clear-filters hidden>پاک‌کردن فیلترها</button></div></div></div><section class="section"><div class="section-head"><h2>محصولات</h2><span>${digits(catalog.categories.length)} دسته</span></div><div id="adminList">${adminRows()}</div><div class="empty" id="adminEmpty" hidden><p>چیزی پیدا نشد. عبارت جست‌وجو یا فیلترها را عوض کن.</p><button type="button" class="btn" data-clear-filters>پاک‌کردن فیلترها</button></div></section>`;
+    app.innerHTML=`<section class="hero"><div><h1>مدیریت منو</h1><p>نسخهٔ سبک و مستقیم برای مدیریت منوی زال کافه.</p></div><div class="actions"><button class="btn" data-action="tastes">مزه‌ها</button><button class="btn" data-action="categories">مدیریت دسته‌ها</button>${catalogSource==='api'?'<button class="btn" data-action="history">تاریخچه</button>':''}<button class="btn orange" data-action="add-product">افزودن محصول</button></div></section><div class="notice">${catalogSource==='api'?`متصل به پایگاه داده D1 · نسخهٔ ${digits(catalogRevision)}${catalogUpdatedAt?` · آخرین ذخیره: ${esc(new Date(catalogUpdatedAt).toLocaleString('fa-IR'))}`:''}`:catalogSource==='cache'?'نمایش از کش محلی؛ در اولین فرصت اتصال سرور را بررسی کن.':'اتصال زنده در دسترس نیست؛ فعلاً نسخهٔ محلی نمایش داده می‌شود.'}</div><div class="stats"><div class="stat"><b>${digits(catalog.products.length)}</b><span>همه</span></div><div class="stat"><b>${digits(available)}</b><span>موجود</span></div><div class="stat"><b>${digits(soldOut)}</b><span>ناموجود</span></div><div class="stat"><b>${digits(hidden)}</b><span>پنهان</span></div></div><div class="toolbar"><div class="helper">برای حذف از منوی عمومی بهتر است وضعیت «پنهان» را انتخاب کنی. دکمهٔ حذف، محصول را واقعاً از کاتالوگ پاک می‌کند.</div><div class="filters" role="search"><div class="field"><label for="adminSearch">جست‌وجو در محصولات</label><input id="adminSearch" type="search" dir="auto" value="${esc(ui.q)}" placeholder="نام فارسی یا English، دسته، شناسه…" autocomplete="off" enterkeyhint="search" spellcheck="false"></div><div class="chips" role="group" aria-label="فیلتر وضعیت و محتوا">${statusChips()}</div>${adminCategoryBar()}<div class="filter-foot"><span id="resultCount" role="status"></span><button type="button" class="btn ghost" id="clearFilters" data-clear-filters hidden>پاک‌کردن فیلترها</button></div></div></div><section class="section"><div class="section-head"><h2>محصولات</h2><span>${digits(catalog.categories.length)} دسته</span></div><div id="adminList">${adminRows()}</div><div class="empty" id="adminEmpty" hidden><p>چیزی پیدا نشد. عبارت جست‌وجو یا فیلترها را عوض کن.</p><button type="button" class="btn" data-clear-filters>پاک‌کردن فیلترها</button></div></section>`;
     applyFilters()
   }
   function nextSortOrder(){return catalog.products.reduce((max,p)=>Math.max(max,Number(p.sortOrder)||0),0)+1}
@@ -319,6 +324,123 @@
     const tab=event.target.closest?.('[data-lang-tab]');if(!tab)return;
     let lang=null;if(event.key==='ArrowLeft'||event.key==='ArrowRight')lang=tab.dataset.langTab==='fa'?'en':'fa';else if(event.key==='Home')lang='fa';else if(event.key==='End')lang='en';
     if(lang){event.preventDefault();setEditorLang(tab.closest('dialog'),lang,true)}
+  });
+  /* ---- history & restore: reads saved versions; the only write is the server-guarded restore ---- */
+  const hist={data:null,cache:{},busy:false,loadId:0};
+  const STATUS_LABELS={available:'موجود',sold_out:'ناموجود',hidden:'پنهان'};
+  const HIST_MAX_LINES=10;
+  function histDialog(){return document.getElementById('historyEditor')}
+  function histTime(v){if(!v)return 'زمان نامشخص';let t=String(v);if(/^\d{4}-\d\d-\d\d \d\d:\d\d:\d\d$/.test(t))t=t.replace(' ','T')+'Z';const d=new Date(t);return isNaN(d)?'زمان نامشخص':d.toLocaleString('fa-IR',{dateStyle:'medium',timeStyle:'short'})}
+  function canon(v){if(Array.isArray(v))return '['+v.map(canon).join(',')+']';if(v&&typeof v==='object')return '{'+Object.keys(v).filter(k=>v[k]!=null).sort().map(k=>JSON.stringify(k)+':'+canon(v[k])).join(',')+'}';return JSON.stringify(v)}
+  function histName(p){return p?.i?.fa?.n||p?.i?.en?.n||p?.id||'بدون نام'}
+  function histRest(p){const q=clone(p);q.price=0;q.status='';if(q.i&&typeof q.i==='object'){for(const l of ['fa','en'])if(q.i[l]&&typeof q.i[l]==='object')q.i[l].n=''}return canon(q)}
+  function histDiff(next){
+    const cur=catalog,lines=[];const curMap=new Map(cur.products.map(p=>[p.id,p]));const nextMap=new Map(next.products.map(p=>[p.id,p]));
+    cur.products.filter(p=>!nextMap.has(p.id)).forEach(p=>lines.push({warn:true,text:`محصول «${histName(p)}» از منو حذف می‌شود.`}));
+    next.products.filter(p=>!curMap.has(p.id)).forEach(p=>lines.push({text:`محصول «${histName(p)}» به منو برمی‌گردد.`}));
+    let other=0;const price=[],status=[],names=[];
+    for(const n of next.products){const c=curMap.get(n.id);if(!c)continue;
+      if(c.price!==n.price)price.push({text:`قیمت «${histName(n)}»: از ${money(c.price)} به ${money(n.price)}.`});
+      if(c.status!==n.status)status.push({text:`وضعیت «${histName(n)}»: از ${STATUS_LABELS[c.status]||c.status} به ${STATUS_LABELS[n.status]||n.status}.`});
+      if(c.i?.fa?.n!==n.i?.fa?.n||c.i?.en?.n!==n.i?.en?.n)names.push({text:`نام «${histName(c)}» به «${histName(n)}» تغییر می‌کند.`});
+      if(histRest(c)!==histRest(n))other++}
+    lines.push(...price,...status,...names);
+    if(other)lines.push({text:`جزئیات ${digits(other)} محصول (مثل توضیح، دسته یا مزه) تغییر می‌کند.`});
+    const curCats=new Map(cur.categories.map(c=>[c.id,c]));const nextCats=new Map(next.categories.map(c=>[c.id,c]));
+    cur.categories.filter(c=>!nextCats.has(c.id)).forEach(c=>lines.push({warn:true,text:`دستهٔ «${c.fa||c.id}» حذف می‌شود.`}));
+    next.categories.filter(c=>!curCats.has(c.id)).forEach(c=>lines.push({text:`دستهٔ «${c.fa||c.id}» برمی‌گردد.`}));
+    next.categories.forEach(c=>{const old=curCats.get(c.id);if(old&&canon(old)!==canon(c))lines.push({text:`دستهٔ «${c.fa||c.id}» (نام، توضیح یا ترتیب) تغییر می‌کند.`})});
+    if(canon({t:cur.taste,p:cur.palate,i:cur.tasteInfo})!==canon({t:next.taste,p:next.palate,i:next.tasteInfo}))lines.push({text:'نام یا توضیح مزه‌ها تغییر می‌کند.'});
+    return lines
+  }
+  function histShell(body,foot=''){return `<div class="sheet-head"><h2>تاریخچهٔ تغییرات</h2><button class="close" type="button" aria-label="بستن" data-close="historyEditor">×</button></div><div class="sheet-body" id="histBody">${body}</div><div class="sheet-foot"><div class="form-msg" role="alert" hidden></div><button class="btn" type="button" data-hist-reload hidden>بارگذاری دوباره</button>${foot}<button class="btn" data-close="historyEditor" type="button">بستن</button></div>`}
+  function histRender(){
+    const d=histDialog();const data=hist.data;const stale=data.current.revision!==catalogRevision;
+    const note='<p class="muted hist-note">هر بار که منو ذخیره می‌شود، نسخهٔ قبلی نگه داشته می‌شود. می‌توانی یکی از نسخه‌های اخیر را بررسی و برگردانی. بازگردانی چیزی را پاک نمی‌کند؛ منوی فعلی هم به‌عنوان یک نسخه نگه داشته می‌شود و بلافاصله می‌توانی «برگردان» بزنی.</p>';
+    const banner=stale?`<div class="hist-banner"><span>منو در نشست دیگری تغییر کرده است (نسخهٔ ${digits(data.current.revision)}). برای دیدن آخرین وضعیت، بارگذاری دوباره را بزن؛ تا آن موقع بازگردانی غیرفعال است.</span><button class="btn" type="button" data-hist-reload>بارگذاری دوباره</button></div>`:'';
+    const current=`<div class="hist-current"><b>نسخهٔ فعلی: ${digits(data.current.revision)}</b> <span class="muted">· ${esc(histTime(data.current.updatedAt))} · ${digits(data.current.products)} محصول</span></div>`;
+    const list=data.items.length?`<ol class="hist-list" aria-label="نسخه‌های قبلی">${data.items.map(it=>`<li class="hist-item"><div class="hist-row"><div class="hist-info"><b>نسخهٔ ${digits(it.revision)}</b><span class="muted">${esc(histTime(it.savedAt))} · ${digits(it.products)} محصول</span></div><button type="button" class="btn" data-hist-review="${it.revision}" aria-expanded="false" aria-controls="hist-panel-${it.revision}" aria-label="بررسی و بازگردانی نسخهٔ ${digits(it.revision)}" ${stale?'disabled':''}>بررسی و بازگردانی</button></div><div class="hist-panel" id="hist-panel-${it.revision}" role="region" aria-label="خلاصهٔ بازگردانی نسخهٔ ${digits(it.revision)}" hidden></div></li>`).join('')}</ol>${data.items.length>=(data.limit||20)?`<p class="muted taste-help">فقط ${digits(data.limit||20)} نسخهٔ آخر نمایش داده می‌شود.</p>`:''}`:'<div class="empty">هنوز نسخهٔ قبلی‌ای ثبت نشده است. بعد از اولین تغییر در منو، نسخهٔ قبلی اینجا نگه داشته می‌شود.</div>';
+    d.querySelector('#histBody').innerHTML=note+banner+current+list;
+    d.querySelectorAll('.sheet-foot [data-hist-reload]').forEach(b=>b.hidden=true)
+  }
+  async function openHistory(){
+    const d=histDialog();const id=++hist.loadId;hist.cache={};hist.data=null;
+    d.innerHTML=histShell('<p class="muted" role="status">در حال بارگذاری تاریخچه…</p>');
+    if(!d.open)d.showModal();
+    try{
+      const r=await fetch('/admin/api/catalog/history',{headers:{accept:'application/json'},cache:'no-store',credentials:'same-origin'});
+      if(id!==hist.loadId)return;
+      if(r.status===401||r.status===403){showFormMsg(d,'نشست مدیریت منقضی شده؛ صفحه دوباره باز می‌شود.');setTimeout(()=>location.reload(),900);return}
+      const data=await r.json().catch(()=>null);
+      if(!r.ok||!data?.ok||!Array.isArray(data.items)||!data.current)throw new Error(data?.error?.message||`HTTP ${r.status}`);
+      hist.data=data;histRender()
+    }catch(error){
+      if(id!==hist.loadId)return;console.error('history_load_failed',error);
+      d.querySelector('#histBody').innerHTML='<div class="empty">تاریخچه بارگذاری نشد. اتصال را بررسی کن و دوباره تلاش کن.<br><button class="btn" type="button" data-hist-retry>تلاش دوباره</button></div>'
+    }
+  }
+  function histPanelBody(rev,next){
+    const lines=histDiff(next);
+    if(!lines.length)return `<p>نسخهٔ ${digits(rev)} با منوی فعلی یکی است؛ چیزی برای بازگرداندن نیست.</p>`;
+    const shown=lines.slice(0,HIST_MAX_LINES);const more=lines.length-shown.length;
+    return `<p><b>با بازگردانی نسخهٔ ${digits(rev)}، ${digits(lines.length)} تغییر نسبت به منوی فعلی اعمال می‌شود:</b></p><ul class="hist-diff">${shown.map(l=>`<li${l.warn?' class="warn"':''}>${esc(l.text)}</li>`).join('')}${more>0?`<li class="muted">و ${digits(more)} مورد دیگر.</li>`:''}</ul><p class="muted taste-help">منوی فعلی (نسخهٔ ${digits(catalogRevision)}) نگه داشته می‌شود و نتیجه به‌عنوان نسخهٔ ${digits(catalogRevision+1)} ذخیره می‌شود. بعدش چند ثانیه فرصت «برگردان» داری.</p><div class="hist-actions"><button type="button" class="btn orange" data-hist-confirm="${rev}">تأیید و بازگردانی</button></div>`
+  }
+  function histPanelsClose(except){
+    histDialog().querySelectorAll('[data-hist-review]').forEach(b=>{if(b.dataset.histReview===except)return;b.setAttribute('aria-expanded','false');const panel=document.getElementById(b.getAttribute('aria-controls'));if(panel)panel.hidden=true})
+  }
+  async function histReview(rev,btn){
+    const panel=document.getElementById(`hist-panel-${rev}`);if(!panel||hist.busy)return;
+    if(!panel.hidden){panel.hidden=true;btn.setAttribute('aria-expanded','false');return}
+    histPanelsClose(String(rev));panel.hidden=false;btn.setAttribute('aria-expanded','true');
+    if(hist.cache[rev]){panel.innerHTML=histPanelBody(rev,hist.cache[rev]);return}
+    panel.setAttribute('aria-busy','true');panel.innerHTML='<p class="muted" role="status">در حال دریافت نسخه…</p>';
+    try{
+      const r=await fetch(`/admin/api/catalog/history?revision=${encodeURIComponent(rev)}`,{headers:{accept:'application/json'},cache:'no-store',credentials:'same-origin'});
+      if(r.status===401||r.status===403){panel.innerHTML='<p>نشست مدیریت منقضی شده؛ صفحه دوباره باز می‌شود.</p>';setTimeout(()=>location.reload(),900);return}
+      const data=await r.json().catch(()=>null);
+      if(r.status===404){panel.innerHTML=`<p>نسخهٔ ${digits(rev)} دیگر در تاریخچه نیست.</p>`;return}
+      if(!r.ok||!data?.ok||!data.catalog)throw new Error(data?.error?.message||`HTTP ${r.status}`);
+      if(!Array.isArray(data.catalog.products)||!Array.isArray(data.catalog.categories)){panel.innerHTML=`<p>نسخهٔ ${digits(rev)} ساختار قابل‌بررسی ندارد و بازگردانده نمی‌شود.</p>`;return}
+      hist.cache[rev]=normalizeCatalog(data.catalog);panel.innerHTML=histPanelBody(rev,hist.cache[rev])
+    }catch(error){console.error('history_version_failed',error);panel.innerHTML=`<p>نسخهٔ ${digits(rev)} دریافت نشد.</p><button type="button" class="btn" data-hist-review-retry="${rev}">تلاش دوباره</button>`}
+    finally{panel.removeAttribute('aria-busy')}
+  }
+  function histLock(on){histDialog().querySelectorAll('[data-hist-review],[data-hist-confirm]').forEach(b=>{b.disabled=on})}
+  function histConflictUi(d,message){showFormMsg(d,message);histLock(true);const b=d.querySelector('.sheet-foot [data-hist-reload]');if(b){b.hidden=false;b.focus({preventScroll:true})}}
+  async function histRestore(rev,btn){
+    if(hist.busy)return;const d=histDialog();hideFormMsg(d);
+    hist.busy=true;histLock(true);const label=btn.textContent;btn.textContent='در حال بازگردانی…';
+    const before=clone(catalog);const expected=catalogRevision;let res=null,data=null;
+    try{
+      res=await fetch('/admin/api/catalog/restore',{method:'POST',credentials:'same-origin',headers:{accept:'application/json','content-type':'application/json'},body:JSON.stringify({revision:rev,expectedRevision:expected})});
+      data=await res.json().catch(()=>null)
+    }catch(error){console.error('history_restore_failed',error)}
+    try{
+      if(!res){showFormMsg(d,'اتصال برقرار نشد و چیزی بازگردانده نشد. دوباره تلاش کن.')}
+      else if(res.status===401||res.status===403){showFormMsg(d,'نشست مدیریت منقضی شده؛ صفحه دوباره باز می‌شود.');setTimeout(()=>location.reload(),900);return}
+      else if(res.status===409){histConflictUi(d,'در همین فاصله نشست دیگری منو را تغییر داده است. برای اینکه کار او بازنویسی نشود، چیزی بازگردانده نشد. «بارگذاری دوباره» را بزن و نسخه را دوباره بررسی کن.');return}
+      else if(res.status===404){showFormMsg(d,`نسخهٔ ${digits(rev)} دیگر در تاریخچه نیست و چیزی بازگردانده نشد.`)}
+      else if(res.status===400&&data?.error?.code==='INVALID_CATALOG'){showFormMsg(d,'این نسخه با قواعد فعلی منو سازگار نیست و بازگردانده نشد.')}
+      else if(res.ok&&data?.ok){
+        await loadCatalog();
+        if(catalogSource!=='api'){histConflictUi(d,'نسخه بازگردانی شد، اما نمایش تازه نشد. «بارگذاری دوباره» را بزن.');return}
+        d.close();render();
+        showUndo(`نسخهٔ ${digits(rev)} بازگردانی شد و به‌عنوان نسخهٔ ${digits(catalogRevision)} ذخیره شد.`,before,'[data-action="history"]');
+        focusAfter('[data-action="history"]');return
+      }
+      else showFormMsg(d,'بازگردانی انجام نشد؛ دوباره تلاش کن.');
+      histLock(false);btn.textContent=label
+    }finally{hist.busy=false}
+  }
+  async function histReload(){clearUndo();hideFormMsg(histDialog());await loadCatalog();render();const d=histDialog();if(!d.open)return;await openHistory();if(d.open)(d.querySelector('[data-hist-review]:not(:disabled)')||d.querySelector('.close'))?.focus({preventScroll:true})}
+  document.addEventListener('click',async event=>{
+    const t=event.target.closest('[data-action="history"],[data-hist-review],[data-hist-review-retry],[data-hist-confirm],[data-hist-reload],[data-hist-retry]');if(!t)return;
+    if(t.dataset.action==='history'){await openHistory();return}
+    if(t.dataset.histReview){await histReview(t.dataset.histReview,t);return}
+    if(t.dataset.histReviewRetry){const rev=t.dataset.histReviewRetry;const b=histDialog().querySelector(`[data-hist-review="${rev}"]`);const panel=document.getElementById(`hist-panel-${rev}`);if(b&&panel){panel.hidden=true;b.setAttribute('aria-expanded','false');await histReview(rev,b)}return}
+    if(t.dataset.histConfirm){await histRestore(t.dataset.histConfirm,t);return}
+    if(t.dataset.histReload!==undefined){await histReload();return}
+    if(t.dataset.histRetry!==undefined){await openHistory();return}
   });
   loadCatalog().then(render)
   </script>
