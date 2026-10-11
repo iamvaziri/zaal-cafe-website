@@ -589,7 +589,9 @@ async function putCatalog(request, env) {
       .bind(serialized, updatedAt, expectedRevision)
       .run();
 
-    if (Number(result?.meta?.changes || 0) !== 1) {
+    // D1 counts rows written by the history trigger too (a successful save reports 2),
+    // so "applied" means at least one row changed; 0 means the revision lock failed.
+    if (Number(result?.meta?.changes || 0) < 1) {
       const current = await env.DB.prepare(
         "SELECT revision, updated_at FROM catalog WHERE id = 1",
       ).first();
@@ -788,7 +790,9 @@ async function restoreCatalog(request, env) {
       .bind(JSON.stringify(restored), updatedAt, expectedRevision)
       .run();
 
-    if (Number(result?.meta?.changes || 0) !== 1) {
+    // D1 counts rows written by the history trigger too (a successful save reports 2),
+    // so "applied" means at least one row changed; 0 means the revision lock failed.
+    if (Number(result?.meta?.changes || 0) < 1) {
       const current = await env.DB.prepare(
         "SELECT revision, updated_at FROM catalog WHERE id = 1",
       ).first();
