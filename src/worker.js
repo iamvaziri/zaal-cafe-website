@@ -254,7 +254,8 @@ function validateCatalog(catalog) {
       !validString(category.en, 240) ||
       !validString(category.faDesc || "", 1000) ||
       !validString(category.enDesc || "", 1000) ||
-      !Number.isFinite(Number(category.order))
+      !Number.isFinite(Number(category.order)) ||
+      (category.hidden !== undefined && typeof category.hidden !== "boolean")
     ) {
       return "A category is invalid.";
     }
@@ -527,9 +528,27 @@ async function readCatalog(env) {
   };
 }
 
-async function getCatalog(env) {
+// The public menu never receives categories switched off in the admin
+// ("hidden": true) nor the products inside them.
+function publicCatalogView(catalog) {
+  if (!catalog || !Array.isArray(catalog.categories)) return catalog;
+  const hidden = new Set(
+    catalog.categories.filter((c) => c && c.hidden === true).map((c) => c.id),
+  );
+  if (!hidden.size) return catalog;
+  return {
+    ...catalog,
+    categories: catalog.categories.filter((c) => !hidden.has(c.id)),
+    products: Array.isArray(catalog.products)
+      ? catalog.products.filter((p) => !hidden.has(p && p.categoryId))
+      : catalog.products,
+  };
+}
+
+async function getCatalog(env, publicView = false) {
   try {
     const data = await readCatalog(env);
+    if (publicView) data.catalog = publicCatalogView(data.catalog);
     return json({ ok: true, ...data });
   } catch (error) {
     console.error("catalog_read_failed", error);
@@ -1026,7 +1045,7 @@ export default {
       if (request.method !== "GET") {
         return errorResponse("Method not allowed.", 405, "METHOD_NOT_ALLOWED");
       }
-      return getCatalog(env);
+      return getCatalog(env, true);
     }
 
     if (path === "/api/health") {
