@@ -502,7 +502,7 @@ window.clarity=window.clarity||function(){(window.clarity.q=window.clarity.q||[]
         if(Array.isArray(candidate?.categories)&&Array.isArray(candidate?.products)){live=candidate;break}
       }
       if(!live)return;
-      DATA.categories=live.categories;DATA.products=live.products;applyTasteInfo(live.tasteInfo);catalogReady=true;renderAll();
+      const offCats=new Set(live.categories.filter(c=>c&&c.hidden===true).map(c=>c.id));DATA.categories=live.categories.filter(c=>!offCats.has(c.id));DATA.products=live.products.filter(p=>!offCats.has(p.categoryId));applyTasteInfo(live.tasteInfo);catalogReady=true;renderAll();
     }catch(_){/* keep the embedded fallback catalog */}finally{if(!catalogReady){catalogReady=true;renderAll()}}
   }
   $('#appliedChips').addEventListener('click',e=>{const b=e.target.closest('[data-remove]');if(b)removeFilter(b.dataset.remove)});
