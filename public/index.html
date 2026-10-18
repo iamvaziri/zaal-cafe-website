@@ -121,6 +121,39 @@ window.clarity=window.clarity||function(){(window.clarity.q=window.clarity.q||[]
 .zb-menu-dir{display:none}
 @media (min-width:45rem){.zb-menu-dir{display:inline-flex;align-items:center;gap:.45rem;min-height:2.75rem;padding:.45rem 1rem;border:1px solid var(--color-line);border-radius:1.4rem;background:#fff;color:var(--color-ink);font-size:.875rem;font-weight:800;line-height:1.5;text-decoration:none}.zb-menu-dir:hover{border-color:var(--color-sage)}.zb-menu-dir:focus-visible{outline:2px solid var(--color-sage-deep);outline-offset:2px}}
 </style>
+<style id="zp-css" media="print">
+/* PR ج-۱: printable menu. Applies only while #printMenu is built for printing (html.zp-on). */
+@page{size:A4;margin:12mm}
+html.zp-on,html.zp-on body{background:#fff!important;color:#000!important;overflow:visible!important;height:auto!important;min-height:0!important;margin:0!important;padding:0!important}
+html.zp-on body>:not(#printMenu){display:none!important}
+html.zp-on #printMenu{display:block!important}
+#printMenu{font-family:Vazirmatn,Arial,sans-serif;font-size:10.5pt;line-height:1.4;color:#000}
+#printMenu *{color:#000!important;background:none!important;box-shadow:none!important;text-shadow:none!important}
+#printMenu h1,#printMenu h2,#printMenu p{margin:0;font-family:inherit;letter-spacing:normal;text-transform:none}
+.zp-head{text-align:center;padding-bottom:2.5mm;margin-bottom:4mm;border-bottom:1pt solid #000}
+.zp-title{font-size:17pt;font-weight:800;line-height:1.35}
+.zp-info{font-size:10pt;margin-top:.8mm}
+.zp-info>span{display:inline-block;margin:0 2.5mm}
+.zp-note{font-weight:700}
+.zp-ltr{direction:ltr;unicode-bidi:isolate}
+.zp-cols{column-count:2;column-gap:8mm}
+.zp-cat{margin-bottom:3.5mm}
+.zp-cat h2{font-size:12.5pt;font-weight:800;line-height:1.4;padding-bottom:.6mm;margin-bottom:1mm;border-bottom:.75pt solid #000;break-after:avoid}
+.zp-keep,.zp-item,.zp-row,.zp-grid tr{break-inside:avoid}
+.zp-row{display:flex;align-items:baseline;gap:1.5mm;padding:.3mm 0}
+.zp-name{font-weight:600}
+.zp-dots{flex:1 1 4mm;min-width:4mm;border-bottom:.6pt dotted #000;transform:translateY(-.3em)}
+.zp-price{flex:none;white-space:nowrap;font-weight:600;unicode-bidi:isolate}
+.zp-var{padding-inline-start:4mm;font-size:10pt}
+.zp-var .zp-name,.zp-var .zp-price{font-weight:400}
+.zp-grid{width:100%;border-collapse:collapse;font-size:10pt;margin:.3mm 0 .8mm}
+.zp-grid th,.zp-grid td{padding:.25mm 0;font-weight:400;text-align:start;vertical-align:baseline;border-bottom:.5pt dotted #000}
+.zp-grid thead th{font-weight:600;border-bottom:.6pt solid #000}
+.zp-grid thead th:first-child{font-size:10.5pt}
+.zp-grid tbody th{padding-inline-start:4mm}
+.zp-grid .zp-c{width:19mm;text-align:end;white-space:nowrap;unicode-bidi:isolate}
+.zp-tag{display:inline-block;margin-inline-start:1.5mm;padding:0 1mm;border:.6pt solid #000;border-radius:1mm;font-size:10pt;font-weight:700;line-height:1.3}
+</style>
 </head>
 <body class="bg-base-100 text-base-content font-sans">
   <a class="skip-link" href="#main" data-t="skipContent">پرش به محتوا</a>
@@ -292,6 +325,8 @@ window.clarity=window.clarity||function(){(window.clarity.q=window.clarity.q||[]
       <div class="footer-bottom"><span data-t="footerLocation">زال کافه، اصفهان</span><span data-t="footerHours">هر روز از ۷ صبح تا ۱۲ شب.</span></div>
     </div>
   </footer>
+  <!-- PR ج-۱: filled only while printing (see #zp-css) -->
+  <section id="printMenu" style="display:none"></section>
 
   <nav class="bottom-nav md:hidden" aria-label="ناوبری اصلی" data-aria="mainNav">
     <button class="active" type="button" data-go="home"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m3 11 9-8 9 8"></path><path d="M5 10v10h14V10"></path></svg><span data-t="home">خانه</span></button>
@@ -528,6 +563,39 @@ window.clarity=window.clarity||function(){(window.clarity.q=window.clarity.q||[]
     function onScroll(){queued=false;if(view!=='menu'){tools.classList.remove('zb-compact');return}if(openWhich)return;const y=window.scrollY,d=y-last;if(y<140){tools.classList.remove('zb-compact');last=y}else if(d>8){shift();tools.classList.add('zb-compact');last=y}else if(d<-8){tools.classList.remove('zb-compact');last=y}}
     window.addEventListener('scroll',()=>{if(!queued){queued=true;requestAnimationFrame(onScroll)}},{passive:true});
     window.addEventListener('resize',()=>{if(tools.classList.contains('zb-compact'))shift()})
+  })();
+  /* ---- PR ج-۱: printable menu — Ctrl/Cmd+P always prints the full menu in the current language ---- */
+  (function(){
+    const box=document.getElementById('printMenu');if(!box)return;
+    const root=document.documentElement,E=escapeHTML,SEP=' — ';
+    const txt=o=>(o&&(o[lang]||o.fa||o.en))||'';
+    const pName=p=>{const i=p.i||{};return (i[lang]&&i[lang].n)||(i.fa&&i.fa.n)||(i.en&&i.en.n)||p.id};
+    const pr=n=>n?faDigits(n):t('pending');
+    const row=(name,price,cls,tag)=>`<div class="zp-row${cls}"><span class="zp-name">${E(name)}${tag}</span>${price?`<span class="zp-dots"></span><span class="zp-price">${E(price)}</span>`:''}</div>`;
+    function grid(vs){
+      const parts=vs.map(v=>txt(v).split(SEP).map(x=>x.trim()));
+      if(parts.some(x=>x.length!==2||!x[0]||!x[1]))return null;
+      const cols=[...new Set(parts.map(x=>x[0]))],rows=[...new Set(parts.map(x=>x[1]))],cell=new Map();
+      parts.forEach((x,i)=>cell.set(x[1]+'\n'+x[0],vs[i]));
+      return cols.length>1&&rows.length>1&&cell.size===vs.length&&cols.length*rows.length===vs.length?{cols,rows,cell}:null}
+    function item(p){
+      const vs=(Array.isArray(p.priceVariants)?p.priceVariants:[]).filter(v=>v&&txt(v));
+      const tag=isSold(p)?`<span class="zp-tag">${E(t('soldOut'))}</span>`:'';
+      const inV=vs.some(v=>v.price===p.price),g=inV&&grid(vs);
+      if(g)return `<div class="zp-item"><table class="zp-grid"><thead><tr><th>${E(pName(p))}${tag}</th>${g.cols.map(c=>`<th class="zp-c">${E(c)}</th>`).join('')}</tr></thead><tbody>${g.rows.map(r=>`<tr><th>${E(r)}</th>${g.cols.map(c=>`<td class="zp-c">${E(pr(g.cell.get(r+'\n'+c).price))}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
+      return `<div class="zp-item">${row(pName(p),vs.length&&inV?'':pr(p.price),'',tag)}${vs.map(v=>row(txt(v),pr(v.price),' zp-var','')).join('')}</div>`}
+    function build(){
+      const vis=DATA.products.filter(isVisible),known=new Set(DATA.categories.map(c=>c.id));
+      const groups=DATA.categories.map(c=>({name:txt(c)||c.id,list:vis.filter(p=>p.categoryId===c.id)}));
+      const rest=vis.filter(p=>!known.has(p.categoryId));if(rest.length)groups.push({name:lang==='fa'?'سایر':'Other',list:rest});
+      const cats=groups.filter(g=>g.list.length).map(g=>{const items=[...g.list.filter(p=>!isSold(p)),...g.list.filter(isSold)].map(item);return `<section class="zp-cat"><div class="zp-keep"><h2>${E(g.name)}</h2>${items[0]}</div>${items.slice(1).join('')}</section>`}).join('');
+      const info=(k,v,ltr)=>`<span>${E(t(k))}: ${ltr?`<span class="zp-ltr" dir="ltr">${E(t(v))}</span>`:E(t(v))}</span>`;
+      box.innerHTML=`<div class="zp-head"><h1 class="zp-title">${E(t('footerLocation'))}</h1><p class="zp-info">${info('address','addressValue')}</p><p class="zp-info">${info('phone','phoneValue',true)}<span>${E(t('hours'))}: ${E(t('hoursValue'))} ${E(t('holidayValue'))}</span></p><p class="zp-info zp-note">${lang==='fa'?'قیمت‌ها به تومان':'Prices in Tomans'}</p></div><div class="zp-cols">${cats}</div>`;
+      root.classList.add('zp-on')}
+    function clear(){root.classList.remove('zp-on');box.innerHTML=''}
+    window.addEventListener('beforeprint',build);window.addEventListener('afterprint',clear);
+    const mq=window.matchMedia&&window.matchMedia('print');
+    if(mq){const on=e=>{e.matches?build():clear()};mq.addEventListener?mq.addEventListener('change',on):mq.addListener&&mq.addListener(on)}
   })();
   applyRoute();
   renderAll();
