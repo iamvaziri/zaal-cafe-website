@@ -121,6 +121,11 @@ window.clarity=window.clarity||function(){(window.clarity.q=window.clarity.q||[]
 .zb-menu-dir{display:none}
 @media (min-width:45rem){.zb-menu-dir{display:inline-flex;align-items:center;gap:.45rem;min-height:2.75rem;padding:.45rem 1rem;border:1px solid var(--color-line);border-radius:1.4rem;background:#fff;color:var(--color-ink);font-size:.875rem;font-weight:800;line-height:1.5;text-decoration:none}.zb-menu-dir:hover{border-color:var(--color-sage)}.zb-menu-dir:focus-visible{outline:2px solid var(--color-sage-deep);outline-offset:2px}}
 </style>
+<style id="zo-css">
+/* PR ج-۲: "saved copy" note, shown only when the menu comes from the saved catalog */
+.zo-note{background:var(--color-sage-tint);color:var(--color-sage-deep);border-bottom:1px solid var(--color-line);padding:.55rem 1rem;font-size:.875rem;line-height:1.6;text-align:center;font-weight:600}
+.zo-note[hidden]{display:none}
+</style>
 <style id="zp-css" media="print">
 /* PR ج-۱: printable menu. #printMenu is kept built (hidden on screen); print is pure CSS, gated by html.zp-ready. */
 @page{size:A4;margin:12mm}
@@ -175,6 +180,7 @@ html.zp-ready #printMenu{display:block!important}
       <button class="btn btn-neutral menu-cta hidden md:inline-flex" type="button" data-go="menu" id="menuCtaBtn"><span data-t="viewMenu">دیدن منو</span><span class="icon-arrow" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 6 9 12 15 18"/></svg></span></button>
     </div>
   </header>
+  <div id="offlineNote" class="zo-note" role="status" aria-live="polite" hidden></div>
 
   <main id="main" tabindex="-1">
     <section class="view active" id="homeView" aria-label="صفحه اصلی" data-aria="home">
@@ -523,11 +529,25 @@ html.zp-ready #printMenu{display:block!important}
     const d=(i.d||'').trim();if(d)parts.push(block(t('description'),`<p>${escapeHTML(d)}</p>`));
     $('#detailExtra').innerHTML=parts.join('')}
   function applyTasteInfo(info){if(!info||typeof info!=='object')return;TASTES.forEach(x=>{const v=info[x.id];if(!v||typeof v!=='object')return;['fa','en','faDesc','enDesc'].forEach(k=>{const s=typeof v[k]==='string'?v[k].trim():'';if(s&&s.length<=200)x[k]=s})})}
+  /* ---- PR ج-۲: keep the last good catalog and use it when the network fails ---- */
+  const ZO=(function(){
+    const KEY='zaal.catalog.v1',TXT={fa:{a:'نسخهٔ ذخیره‌شده',b:'آخرین همگام‌سازی',c:'قیمت‌ها ممکن است تغییر کرده باشند'},en:{a:'Saved copy',b:'Last synced',c:'prices may have changed'}};
+    let savedAt=0,fresh=false;
+    function put(live,rev){try{localStorage.setItem(KEY,JSON.stringify({savedAt:Date.now(),revision:rev||null,catalog:{categories:live.categories,products:live.products,tasteInfo:live.tasteInfo}}))}catch(_){}}
+    function get(){try{const x=JSON.parse(localStorage.getItem(KEY)||'null');if(x&&x.savedAt&&x.catalog&&Array.isArray(x.catalog.categories)&&Array.isArray(x.catalog.products))return x}catch(_){}return null}
+    function show(){const n=document.getElementById('offlineNote');if(!n)return;if(!savedAt){n.hidden=true;return}const T=TXT[lang]||TXT.fa,when=new Intl.DateTimeFormat(lang==='fa'?'fa-IR-u-ca-gregory':'en-US',{timeZone:'Asia/Tehran',day:'numeric',month:'long',hour:'2-digit',minute:'2-digit',hour12:false}).format(new Date(savedAt));n.textContent=`${T.a} · ${T.b}: ${when} · ${T.c}`;n.hidden=false}
+    function apply(live){const offCats=new Set(live.categories.filter(c=>c&&c.hidden===true).map(c=>c.id));DATA.categories=live.categories.filter(c=>!offCats.has(c.id));DATA.products=live.products.filter(p=>!offCats.has(p.categoryId));applyTasteInfo(live.tasteInfo);catalogReady=true;renderAll()}
+    const prev=renderAll;renderAll=function(){const r=prev.apply(this,arguments);try{show()}catch(_){}return r};
+    return{
+      live(live,rev){fresh=true;savedAt=0;put(live,rev);apply(live)},
+      saved(){if(fresh)return false;const x=get();if(!x)return false;savedAt=x.savedAt;apply(x.catalog);return true}
+    };
+  })();
   async function refreshCatalogFromApi(){
     if(location.protocol==='file:')return;
     try{
       const response=await fetch('/api/catalog',{headers:{Accept:'application/json'},cache:'no-store'});
-      if(!response.ok)return;
+      if(!response.ok)throw new Error('catalog http');
       const payload=await response.json();
       const rawCandidates=[payload?.catalog,payload?.data?.catalog,payload?.data,payload?.current,payload];
       let live=null;
@@ -536,9 +556,9 @@ html.zp-ready #printMenu{display:block!important}
         try{if(typeof candidate==='string')candidate=JSON.parse(candidate);if(typeof candidate?.content==='string')candidate=JSON.parse(candidate.content)}catch(_){continue}
         if(Array.isArray(candidate?.categories)&&Array.isArray(candidate?.products)){live=candidate;break}
       }
-      if(!live)return;
-      const offCats=new Set(live.categories.filter(c=>c&&c.hidden===true).map(c=>c.id));DATA.categories=live.categories.filter(c=>!offCats.has(c.id));DATA.products=live.products.filter(p=>!offCats.has(p.categoryId));applyTasteInfo(live.tasteInfo);catalogReady=true;renderAll();
-    }catch(_){/* keep the embedded fallback catalog */}finally{if(!catalogReady){catalogReady=true;renderAll()}}
+      if(!live)throw new Error('catalog shape');
+      ZO.live(live,payload&&payload.revision);
+    }catch(_){/* network or data problem: use the saved catalog if there is one, else keep the embedded one */try{ZO.saved()}catch(_){}}finally{if(!catalogReady){catalogReady=true;renderAll()}}
   }
   $('#appliedChips').addEventListener('click',e=>{const b=e.target.closest('[data-remove]');if(b)removeFilter(b.dataset.remove)});
   $('#removeLast').addEventListener('click',()=>{const k=$('#removeLast').dataset.remove;if(k)removeFilter(k)});
@@ -598,7 +618,13 @@ html.zp-ready #printMenu{display:block!important}
   })();
   applyRoute();
   renderAll();
-  refreshCatalogFromApi();</script>
+  refreshCatalogFromApi();
+  /* ---- PR ج-۲: offline copy of the pages (service worker) + refresh when the network is back ---- */
+  addEventListener('online',()=>{refreshCatalogFromApi()});
+  if('serviceWorker' in navigator&&window.isSecureContext&&location.protocol!=='file:'){
+    const reg=()=>{try{navigator.serviceWorker.register('/sw.js').catch(()=>{})}catch(_){}};
+    addEventListener('load',()=>{window.requestIdleCallback?requestIdleCallback(reg,{timeout:4000}):setTimeout(reg,2000)});
+  }</script>
   <script>(function(){
   function align(){
     var lock=document.querySelector('.footer-lockup');if(!lock)return;
