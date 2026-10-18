@@ -122,11 +122,11 @@ window.clarity=window.clarity||function(){(window.clarity.q=window.clarity.q||[]
 @media (min-width:45rem){.zb-menu-dir{display:inline-flex;align-items:center;gap:.45rem;min-height:2.75rem;padding:.45rem 1rem;border:1px solid var(--color-line);border-radius:1.4rem;background:#fff;color:var(--color-ink);font-size:.875rem;font-weight:800;line-height:1.5;text-decoration:none}.zb-menu-dir:hover{border-color:var(--color-sage)}.zb-menu-dir:focus-visible{outline:2px solid var(--color-sage-deep);outline-offset:2px}}
 </style>
 <style id="zp-css" media="print">
-/* PR ج-۱: printable menu. Applies only while #printMenu is built for printing (html.zp-on). */
+/* PR ج-۱: printable menu. #printMenu is kept built (hidden on screen); print is pure CSS, gated by html.zp-ready. */
 @page{size:A4;margin:12mm}
-html.zp-on,html.zp-on body{background:#fff!important;color:#000!important;overflow:visible!important;height:auto!important;min-height:0!important;margin:0!important;padding:0!important}
-html.zp-on body>:not(#printMenu){display:none!important}
-html.zp-on #printMenu{display:block!important}
+html.zp-ready,html.zp-ready body{background:#fff!important;color:#000!important;overflow:visible!important;height:auto!important;min-height:0!important;margin:0!important;padding:0!important}
+html.zp-ready body>:not(#printMenu){display:none!important}
+html.zp-ready #printMenu{display:block!important}
 #printMenu{font-family:Vazirmatn,Arial,sans-serif;font-size:10.5pt;line-height:1.4;color:#000}
 #printMenu *{color:#000!important;background:none!important;box-shadow:none!important;text-shadow:none!important}
 #printMenu h1,#printMenu h2,#printMenu p{margin:0;font-family:inherit;letter-spacing:normal;text-transform:none}
@@ -325,7 +325,7 @@ html.zp-on #printMenu{display:block!important}
       <div class="footer-bottom"><span data-t="footerLocation">زال کافه، اصفهان</span><span data-t="footerHours">هر روز از ۷ صبح تا ۱۲ شب.</span></div>
     </div>
   </footer>
-  <!-- PR ج-۱: filled only while printing (see #zp-css) -->
+  <!-- PR ج-۱: kept in sync with the catalog and language; hidden on screen, shown only when printing (see #zp-css) -->
   <section id="printMenu" style="display:none"></section>
 
   <nav class="bottom-nav md:hidden" aria-label="ناوبری اصلی" data-aria="mainNav">
@@ -590,12 +590,11 @@ html.zp-on #printMenu{display:block!important}
       const rest=vis.filter(p=>!known.has(p.categoryId));if(rest.length)groups.push({name:lang==='fa'?'سایر':'Other',list:rest});
       const cats=groups.filter(g=>g.list.length).map(g=>{const items=[...g.list.filter(p=>!isSold(p)),...g.list.filter(isSold)].map(item);return `<section class="zp-cat"><div class="zp-keep"><h2>${E(g.name)}</h2>${items[0]}</div>${items.slice(1).join('')}</section>`}).join('');
       const info=(k,v,ltr)=>`<span>${E(t(k))}: ${ltr?`<span class="zp-ltr" dir="ltr">${E(t(v))}</span>`:E(t(v))}</span>`;
-      box.innerHTML=`<div class="zp-head"><h1 class="zp-title">${E(t('footerLocation'))}</h1><p class="zp-info">${info('address','addressValue')}</p><p class="zp-info">${info('phone','phoneValue',true)}<span>${E(t('hours'))}: ${E(t('hoursValue'))} ${E(t('holidayValue'))}</span></p><p class="zp-info zp-note">${lang==='fa'?'قیمت‌ها به تومان':'Prices in Tomans'}</p></div><div class="zp-cols">${cats}</div>`;
-      root.classList.add('zp-on')}
-    function clear(){root.classList.remove('zp-on');box.innerHTML=''}
-    window.addEventListener('beforeprint',build);window.addEventListener('afterprint',clear);
-    const mq=window.matchMedia&&window.matchMedia('print');
-    if(mq){const on=e=>{e.matches?build():clear()};mq.addEventListener?mq.addEventListener('change',on):mq.addListener&&mq.addListener(on)}
+      const h=`<div class="zp-head"><h1 class="zp-title">${E(t('footerLocation'))}</h1><p class="zp-info">${info('address','addressValue')}</p><p class="zp-info">${info('phone','phoneValue',true)}<span>${E(t('hours'))}: ${E(t('hoursValue'))} ${E(t('holidayValue'))}</span></p><p class="zp-info zp-note">${lang==='fa'?'قیمت‌ها به تومان':'Prices in Tomans'}</p></div><div class="zp-cols">${cats}</div>`;
+      if(box.innerHTML!==h)box.innerHTML=h;root.classList.add('zp-ready')}
+    const safe=()=>{try{build()}catch(_){}};
+    const prev=renderAll;renderAll=function(){const r=prev.apply(this,arguments);safe();return r};
+    window.addEventListener('beforeprint',safe);
   })();
   applyRoute();
   renderAll();
